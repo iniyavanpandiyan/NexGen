@@ -30,99 +30,103 @@ if not OPENROUTER_KEY:
 OPENROUTER_MODEL = os.environ.get("LLM_SCRIPT_MODEL", "deepseek/deepseek-v4-flash")
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 
-SYSTEM_PROMPT = """You are an expert NCERT content editor and visual director for CBSE educational YouTube Shorts. Your goal is to write short-form videos (approx 60 seconds each) that are **engaging, visually rich, and addictive** — viewers should feel compelled to keep watching the next script (scroll for more).
+SYSTEM_PROMPT = """You are an expert short-form video producer and mathematical communicator.
+Your task is to adapt the provided textbook chapter into a cohesive, multi-part
+series of highly engaging Reel/TikTok scripts.
 
-## Script Structure Rules
+[SCRIPT REQUIREMENTS]
+- Duration: Each script must be 150 to 300 words long
+  (1 to 2 minutes of screen time).
+- Formatting: EVERY line and paragraph must be kept under 10 words
+  to fit video teleprompters perfectly.
+- Visual Polish: Do NOT use any emojis, bolding, or markdown text
+  formatting in the final output.
+- Structure: Each script must contain an aggressive visual/audio Hook,
+  a Core Lesson, a Cliffhanger, and a Call to Action (CTA).
 
-### 1. Hook & Cliffhanger (CRITICAL)
-- **Every first segment of every script MUST begin with a hook** — a question, a surprising fact, or a relatable observation that grabs attention in the first 3 seconds. Examples: "Did you know that the steel in your tawa was once just rusty iron ore?" or "Have you ever wondered why some chemical reactions heat up while others cool down?"
-- **Every final segment of every script MUST end with a cliffhanger** — a teaser that makes the viewer *need* to watch the next script. Examples: "But what happens if we add another metal to the mix? That's coming up next." or "So we've seen how atoms rearrange — but how do we actually write it down? Let's find out."
-- Exception: The very first script's hook can be a broad chapter teaser. The very last script's cliffhanger should be a chapter wrap-up that hints at the next chapter's topic.
+[SERIES COHESION]
+- Ensure the scripts form a continuous narrative arc across the chapter.
+- The end of one script must seamlessly setup the hook of the next script.
 
-### 2. More Segments = More Cuts
-- Split each script into **8-12 sub-segments** (not 5-8). Each segment is 1-2 sentences maximum — a single beat of thought. This creates more cuts, more visual variety, and a faster rhythm.
-- Segments should break on natural visual beats: every time the topic shifts slightly (new example, new activity step, new concept), split into a new segment.
-- For activities: each step is its own segment with its own image prompt (setup → observation → result → explanation).
+[TONE & CHARACTER VARIATIONS]
+Generate 3 distinct script variations for each concept using these personas:
 
-### 3. Title Rules
-- 5-12 words, descriptive and curiosity-driven. Use a question or a bold statement.
-- Examples: "Why Does a Nail Turn Brown? (The Rusting Mystery)", "Burning Magnesium: A Dazzling White Flame", "The Law That Stops Atoms From Vanishing"
+Variation 1: The "Street-Smart" Storyteller
+- Tone: High-energy, casual, relatable, deeply practical.
+- Framing: Explains the math using real-world hustles, daily life,
+  or unexpected human history.
 
-### 4. Image Prompt Rules (must be FULLY self-contained)
-Each segment's `image_prompt` must be a complete, coherent description that a text-to-image model can generate faithfully. Never assume context from previous segments.
+Variation 2: The Cosmic Philosopher
+- Tone: Thoughtful, mind-bending, existential, cinematic.
+- Framing: Focuses on how this specific math reveals the hidden,
+  invisible geometry of the universe.
 
-Requirements:
-- **30-60 words each**, rich in visual detail
-- Style prefix: "Flat vector educational illustration. Clean white background, vibrant colors, modern style."
-- Include ALL of: objects, people (if relevant), spatial layout, labels/annotations, colors, arrows, and the emotion or action
-- For activities: show the exact setup (apparatus, chemicals, steps in progress, observation)
-- For science: show labeled diagrams with directional arrows, chemical formulas as text labels in the image
-- For math: show equations on blackboard or graph paper, geometric figures with colorful highlights
-- For social studies: show maps, timelines, cultural scenes with period-appropriate details
-- Ensure the prompt describes a SINGLE coherent scene, not a collage of disconnected elements
-- Keep safe-for-all-ages (no violence, gore, religious imagery)
+Variation 3: The Secret Agent / Tech Thriller
+- Tone: Urgent, mysterious, high-stakes, intense.
+- Framing: Frames the math concept as a "classified shortcut" or code
+  used to hack systems or beat the odds.
 
-Example of a GOOD image prompt:
-"Flat vector educational illustration. Beaker with bubbling acid solution, zinc granules at bottom, hydrogen gas bubbles rising. Hand wearing protective glove touching the beaker. Labels 'Zinc granules' and 'Dilute HCl' with arrows pointing to each. Modern flat style, white background, vibrant blue and orange colors."
-
-## Content Rules
-- **Clean the text lightly**: Merge mid-word OCR spaces. Remove page numbers, "Reprint 2024-25", copyright lines, stray hyphenation. Keep NCERT headers/footers that indicate Activity/Think It Over sections.
-- **Preserve EVERYTHING**: Do NOT strip side-content boxes — "Think It Over", "Activity", "Hint", "Did You Know?", "Try This", "Let us explore", margin notes, callouts, and tips. These are the most engaging parts for a video script.
-- **Mark side-content explicitly**: When a segment comes from a side-activity or callout, prefix the text with `[ACTIVITY]`, `[THINK IT OVER]`, `[HINT]`, or `[DID YOU KNOW]` as appropriate. This cues the video editor to add visual emphasis.
-- **Preserve NCERT voice**: Keep factual accuracy, scientific definitions, formulas, equations intact. Do NOT add concepts not in the text.
-- **Remove exam/Q&A sections only**. Keep ALL Activity worked examples.
-- **~150-200 words per script total** (spread across 8-12 segments).
-- **Maximum 10 scripts** (shorter chapters may produce fewer — that's fine).
-- **Every segment MUST have both "text" and "image_prompt"** — no exceptions.
-
-## Output Format
-
+[OUTPUT FORMAT - JSON]
+Output valid JSON (no markdown fences, no extra text) like this:
 {
   "scripts": [
     {
-      "title": "Curiosity-Driven Title Here?",
+      "title": "The Casino Secret",
+      "variation": 3,
+      "variation_name": "Secret Agent / Tech Thriller",
       "segments": [
-        {"text": "Hook sentence that grabs attention...", "image_prompt": "Flat vector educational illustration. [Rich visual description with full context, labels, layout, colors]. Modern style, white background."},
-        {"text": "Second beat of the thought...", "image_prompt": "Flat vector educational illustration. [Completely self-contained visual description for this segment]."},
-        {"text": "Cliffhanger that teases the next script...", "image_prompt": "Flat vector educational illustration. [Visual suggesting the unanswered question or next topic]."}
-      ]
+        {"text": "Most people lose.", "image_prompt": "..."},
+        {"text": "The math is rigged.", "image_prompt": "..."},
+        {"text": "But you can win.", "image_prompt": "..."},
+        {"text": "Here is the secret.", "image_prompt": "..."}
+      ],
+      "hook": "Most people lose. The math is rigged. But you can win. Here is the secret.",
+      "core_lesson": "Look at expected value. It predicts long-term outcomes. Multiply the probability by the payout. Subtract the losing probability. If the number is positive, play. If it is negative, walk away. Casinos hide this simple formula. It turns luck into pure logic.",
+      "cliffhanger": "But there is a fatal flaw. One mistake ruins everything. It wipes out your entire bankroll.",
+      "cta": "Follow to see the flaw tomorrow."
     }
   ]
 }
 
-IMPORTANT REMINDERS:
-- EVERY script starts with a hook, ends with a cliffhanger
-- 8-12 segments per script (more cuts = more engaging)
-- Every image prompt is fully self-contained (30-60 words)
-- Activities: each step gets its own segment with its own visual
-- Max 10 scripts total"""
+Image prompt rules (for "image_prompt" in each segment):
+- "Flat vector educational illustration. Clean white background, vibrant colors, modern style."
+- Include ALL of: objects, people, spatial layout, labels, colors, arrows, emotion.
+- Describe ONE coherent scene, fully self-contained.
+- 30-60 words per prompt.
+
+IMPORTANT:
+- Every line under 10 words for teleprompter readability.
+- No emojis, no bold, no markdown.
+- Scripts form a continuous narrative across the chapter.
+- 150-300 words per script total (spread across segments)."""
 
 
 def clean_and_generate(raw_text: str, pdf_title: str = "", pdf_class: str = "",
-                       pdf_subject: str = "", max_scripts: int = 12,
-                       diagram_context: str = "") -> list:
+                        pdf_subject: str = "", max_scripts: int = 96,
+                       diagram_context: str = "", llm_backend: str = "openrouter") -> list:
     """Clean PDF text and generate structured scripts via LLM.
 
-    Uses chunking for long texts: splits into 6000-char chunks with overlap,
-    generates ~3 scripts per chunk, then merges all results.
+    Args:
+        llm_backend: "openrouter" (default) or "local" (local Gemma via llama.cpp)
     """
     if not raw_text or len(raw_text.strip()) < 50:
         return []
 
+    raw_text = _pre_clean_text(raw_text)
+
+    if llm_backend == "local":
+        return _generate_via_local_gemma(raw_text, pdf_title, pdf_class, pdf_subject,
+                                          max_scripts, diagram_context)
+
     if not OPENROUTER_KEY:
         return _rule_based_fallback(raw_text, pdf_title)
 
-    # Pre-clean the full text
-    raw_text = _pre_clean_text(raw_text)
-
-    # Chunk the text for better LLM compliance
-    CHUNK_SIZE = 6000   # Characters per chunk
-    CHUNK_OVERLAP = 800  # Overlap between chunks
-    SCRIPTS_PER_CHUNK = 3
+    CHUNK_SIZE = 24000
+    CHUNK_OVERLAP = 2000
+    SCRIPTS_PER_CHUNK = 6
 
     chunks = _chunk_text(raw_text, CHUNK_SIZE, CHUNK_OVERLAP)
-    # Cap chunks to avoid too many LLM calls
-    max_chunks = min(len(chunks), 4)
+    max_chunks = min(len(chunks), 16)
     chunks = chunks[:max_chunks]
 
     all_scripts = []
@@ -177,7 +181,6 @@ def clean_and_generate(raw_text: str, pdf_title: str = "", pdf_class: str = "",
             if scripts:
                 all_scripts.extend(scripts)
             else:
-                # Fallback for this chunk
                 json_match = re.search(r'\{[\s\S]*"scripts"[\s\S]*\}', content)
                 if json_match:
                     try:
@@ -194,7 +197,6 @@ def clean_and_generate(raw_text: str, pdf_title: str = "", pdf_class: str = "",
     if not all_scripts:
         return _rule_based_fallback(raw_text, pdf_title)
 
-    # Merge scripts from all chunks, deduplicate by title
     seen_titles = set()
     merged = []
     for s in all_scripts:
@@ -203,18 +205,72 @@ def clean_and_generate(raw_text: str, pdf_title: str = "", pdf_class: str = "",
             seen_titles.add(title)
             merged.append(s)
 
-    # Ensure image_prompts on all segments
     merged = _ensure_image_prompts(merged)
 
-    # Cap at max_scripts
     if len(merged) > max_scripts:
         merged = merged[:max_scripts]
 
-    # Adjust cliffhangers between consecutive scripts
     merged = _fix_adjacent_cliffhangers(merged)
 
     print(f"[LLM Merge] Total: {len(merged)} unique scripts from {len(chunks)} chunks", flush=True)
     return merged
+
+
+def _generate_via_local_gemma(raw_text: str, pdf_title: str = "", pdf_class: str = "",
+                               pdf_subject: str = "", max_scripts: int = 96,
+                               diagram_context: str = "") -> list:
+    """Generate scripts using local Gemma (llama.cpp) instead of OpenRouter."""
+    LLAMA_HOST = os.environ.get("LLAMA_HOST", "http://127.0.0.1:8082")
+    import requests
+
+    context_parts = []
+    if pdf_title:
+        context_parts.append(f"Title: {pdf_title}")
+    if pdf_class:
+        context_parts.append(f"Class: {pdf_class}")
+    if pdf_subject:
+        context_parts.append(f"Subject: {pdf_subject}")
+    context_line = " | ".join(context_parts)
+    if context_line:
+        context_line = f"[{context_line}]\n\n"
+
+    user_prompt = f"""{context_line}Generate up to {max_scripts} Reel/TikTok scripts from this NCERT textbook chapter.
+
+This is the ENTIRE chapter content in one chunk.
+
+{diagram_context}
+
+Chunk text:
+```
+{raw_text[:64000]}
+```
+
+Output JSON: {{"scripts": [{{"title": "...", "variation": 1, "variation_name": "...", "segments": [{{"text": "...", "image_prompt": "..."}}], "hook": "...", "core_lesson": "...", "cliffhanger": "...", "cta": "..."}}]}} Output {max_scripts} scripts max."""
+
+    payload = {
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": [{"type": "text", "text": user_prompt}]},
+        ],
+        "max_tokens": 8192,
+        "temperature": 0.7,
+    }
+
+    try:
+        resp = requests.post(f"{LLAMA_HOST}/v1/chat/completions", json=payload, timeout=300)
+        resp.raise_for_status()
+        content = resp.json()["choices"][0]["message"]["content"]
+        scripts = _parse_json_response(content)
+        if scripts:
+            scripts = _ensure_image_prompts(scripts)
+            if len(scripts) > max_scripts:
+                scripts = scripts[:max_scripts]
+            print(f"[Local Gemma] Got {len(scripts)} scripts", flush=True)
+            return scripts
+    except Exception as e:
+        print(f"[Local Gemma] Error: {e}, falling back to rule-based", flush=True)
+
+    return _rule_based_fallback(raw_text, pdf_title)
 
 
 def _chunk_text(text: str, chunk_size: int, overlap: int) -> list:
@@ -276,30 +332,31 @@ def _build_chunk_prompt(context_line: str, chunk_text: str, is_first: bool,
     You can also suggest overlaying the actual extracted diagram image in the video frame.
     """
 
-    instructions = f"""{context_line}Generate {max_scripts} YouTube Shorts scripts from this NCERT textbook chunk.
+    instructions = f"""{context_line}Generate {max_scripts} Reel/TikTok scripts from this NCERT textbook chunk.
 
-    {position_hint}
-    {vision_section}
+{position_hint}
+{vision_section}
 
-    REQUIREMENTS (strict):
-    1. EVERY script MUST start with a HOOK (first segment = question or surprising observation — grabs attention in <3 secs)
-    2. EVERY script MUST end with a CLIFFHANGER (last segment = teaser for what's next — makes viewer scroll)
-    3. 9-12 segments per script (segment = 1-2 sentences, one visual beat)
-    4. EVERY segment gets a FULLY SELF-CONTAINED image_prompt (40-60 words, describe ONE coherent scene with labels/colors/layout)
-    5. Activities: each step = its own segment (setup → observation → result → explanation)
-    6. Titles: 5-12 words, curiosity-driven (question or bold statement)
-    7. Mark side-content with [ACTIVITY], [THINK IT OVER], [HINT], [DID YOU KNOW] prefixes
+SCRIPT STRUCTURE for every script:
+- Hook: 4-8 very short lines (<10 words each), aggressive grabber
+- Core Lesson: 10-20 short lines explaining the concept
+- Cliffhanger: 3-5 short lines teasing what comes next
+- CTA: 2-3 short lines prompting follow/subscribe
 
-    {'The FIRST script MUST hook viewers into the chapter topic.' if is_first else ''}
-    {'The LAST script MUST end with a compelling cliffhanger teasing the NEXT chapter.' if is_last else ''}
-    {'Since this is a continuation chunk, start scripts by linking back to previous content before diving in.' if not is_first and not is_last else ''}
+TONE VARIATIONS to use (one variation per script output):
+1 = Street-Smart Storyteller (high-energy, casual, real-world hustles)
+2 = Cosmic Philosopher (thoughtful, cinematic, hidden geometry of universe)
+3 = Secret Agent / Tech Thriller (urgent, high-stakes, classified code)
 
-    Chunk text:
-    ```
-    {chunk_text}
-    ```
+{'The FIRST script MUST hook viewers into the chapter topic with Variation 1.' if is_first else ''}
+{'The LAST script MUST end with a compelling cliffhanger teasing the NEXT chapter.' if is_last else ''}
 
-    Output JSON: {{"scripts": [{{"title": "...", "segments": [{{"text": "...", "image_prompt": "..."}}]}}]}} Output {max_scripts} scripts max."""
+Chunk text:
+```
+{chunk_text}
+```
+
+Output JSON: {{"scripts": [{{"title": "...", "variation": 1, "variation_name": "...", "segments": [{{"text": "...", "image_prompt": "..."}}], "hook": "...", "core_lesson": "...", "cliffhanger": "...", "cta": "..."}}]}} Output {max_scripts} scripts max."""
 
     return instructions
 

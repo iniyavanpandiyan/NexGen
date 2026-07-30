@@ -99,7 +99,7 @@ def _call_gemma_vision(image_path: str, page_text: str, page_num: int) -> dict:
 
         prompt = (
             f"You are analyzing PAGE {page_num + 1} of a CBSE/NCERT textbook.\n\n"
-            f"Extracted text from this page:\n{page_text[:2000]}\n\n"
+            f"Extracted text from this page:\n{page_text[:8000]}\n\n"
             "Analyze this page holistically. Return ONLY valid JSON with these fields:\n"
             "- 'page_number': the page number (1-indexed)\n"
             "- 'summary': 2-3 sentence summary of what this page covers\n"
@@ -119,7 +119,7 @@ def _call_gemma_vision(image_path: str, page_text: str, page_num: int) -> dict:
                     {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
                 ],
             }],
-            "max_tokens": 1024,
+            "max_tokens": 4096,
             "temperature": 0.1,
         }
 
@@ -183,13 +183,13 @@ def _synthesize_all_pages(all_pages: list, pdf_title: str, pdf_class: str, pdf_s
         if "error" in p:
             continue
         page_summaries.append(
-            f"Page {p.get('page_number', 0) + 1}: {p.get('summary', '')[:200]} | "
+            f"Page {p.get('page_number', 0) + 1}: {p.get('summary', '')[:500]} | "
             f"Type: {p.get('page_type', 'content')} | "
             f"Diagrams: {len(p.get('diagrams', []))} | "
-            f"Key concepts: {', '.join(p.get('key_concepts', [])[:3])}"
+            f"Key concepts: {', '.join(p.get('key_concepts', [])[:5])}"
         )
 
-    summaries_text = "\n".join(page_summaries[:80])  # cap at 80 pages
+    summaries_text = "\n".join(page_summaries[:200])  # cap at 200 pages
 
     prompt = (
         f"Textbook: Class {pdf_class}, Subject: {pdf_subject or '?'}, Title: {pdf_title or '?'}\n\n"
@@ -208,7 +208,7 @@ def _synthesize_all_pages(all_pages: list, pdf_title: str, pdf_class: str, pdf_s
 
     payload = {
         "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}]}],
-        "max_tokens": 4096,
+        "max_tokens": 8192,
         "temperature": 0.1,
     }
 

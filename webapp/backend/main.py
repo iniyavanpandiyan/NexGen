@@ -366,11 +366,15 @@ def pdf_parse(pid: int):
     result = _hybrid_extract(path)
 
     # Generate structured scripts via LLM
+    _conn_lb = db.get_conn()
+    _llm_backend = settings.get_setting(_conn_lb, "llm_backend", "openrouter")
+    _conn_lb.close()
     scripts = clean_and_generate(
         raw_text=result["text"],
         pdf_title=r["title"] or "",
         pdf_class=r["class"] or "",
         pdf_subject=r["subject"] or "",
+        llm_backend=_llm_backend,
     )
 
     # Ensure every segment has an image_prompt (inline fallback in case
@@ -410,6 +414,121 @@ def pdf_parse(pid: int):
         "title": r["title"] or "",
         "chapter_name": chapter_name,
     }
+
+@app.post("/api/pdfs/{pid}/vision-scripts")
+def pdf_vision_scripts(pid: int, body: dict = {}):
+    """Gemma vision-based script generation: send page images + text to Gemma
+    in one call for deep visual understanding. Uses the new multi-persona prompt.
+
+    Accepts optional body params:
+      - dpi: int (default 150)
+      - persona: int 1|2|3 (default 1, 0=all three)
+      - variation_name: str override
+    """
+    path = pdf_path(pid)
+    if not path:
+        raise HTTPException(404, "pdf not found")
+
+    dpi = body.get("dpi", 150)
+    persona = body.get("persona", 0)
+
+    from pipeline.lib.vision_processor import page_to_image
+    from pipeline.lib.text_extractor import extract as _ocr_extract
+    import base64, time
+
+    conn = db.get_conn()
+    conn.row_factory = sqlite3.Row
+    r = conn.execute("SELECT * FROM pdfs WHERE id=?", (pid,)).fetchone()
+    conn.close()
+    if not r:
+        raise HTTPException(404, "pdf not found")
+
+    result = _ocr_extract(path, dpi=150)
+    raw_text = result.get("text", "")
+
+    max_pages = min(result.get("pages", 50), 30)
+    page_images = []
+    for pg in range(max_pages):
+        img = page_to_image(path, page_num=pg, dpi=dpi)
+        if img:
+            with open(img, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("utf-8")
+            page_images.append(b64)
+            try: os.remove(img); os.rmdir(os.path.dirname(img))
+            except: pass
+
+    persona_descs = {
+        1: "The 'Street-Smart' Storyteller — high-energy, casual, relatable, explains concepts using real-world hustles and daily life.",
+        2: "The Cosmic Philosopher — thoughtful, mind-bending, existential, focuses on hidden geometry of the universe.",
+        3: "The Secret Agent / Tech Thriller — urgent, mysterious, high-stakes, frames concepts as classified shortcuts.",
+    }
+
+    system = (
+        "You are an expert short-form video producer and mathematical communicator. "
+        "Adapt this textbook chapter into cohesive multi-part Reel/TikTok scripts. "
+        "Each script: 150-300 words, every line under 10 words, no emojis/bold/markdown. "
+        "Structure: Hook (aggressive grabber), Core Lesson, Cliffhanger, CTA. "
+        "Scripts must form a continuous narrative arc across the chapter."
+    )
+    if persona in persona_descs:
+        system += f" Use this persona exclusively: {persona_descs[persona]}"
+
+    pages_text = ""
+    for i, _ in enumerate(page_images):
+        pages_text += f"--- Page {i+1} rendered as image above ---\n"
+
+    prompt = (
+        f"Textbook: Class {r['class']}, Subject: {r.get('subject','')}, Title: {r.get('title','')}\n\n"
+        f"CHAPTER CONTENT (OCR extracted):\n{raw_text[:16000]}\n\n"
+        f"Below are the page images ({len(page_images)} pages at {dpi} DPI).\n"
+        f"{pages_text}\n\n"
+        "Generate scripts. Output JSON: {\"scripts\": [{\"title\": \"...\", "
+        "\"variation\": 1, \"variation_name\": \"...\", "
+        "\"segments\": [{\"text\": \"...\", \"image_prompt\": \"...\"}], "
+        "\"hook\": \"...\", \"core_lesson\": \"...\", "
+        "\"cliffhanger\": \"...\", \"cta\": \"...\"}]}"
+    )
+
+    content_parts = [{"type": "text", "text": prompt}]
+    for b64 in page_images:
+        content_parts.append({"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}})
+
+    LLAMA_HOST = os.environ.get("LLAMA_HOST", "http://127.0.0.1:8082")
+    payload = {
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": content_parts},
+        ],
+        "max_tokens": 8192,
+        "temperature": 0.7,
+    }
+
+    try:
+        resp = requests.post(f"{LLAMA_HOST}/v1/chat/completions", json=payload, timeout=300)
+        if resp.status_code != 200:
+            raise HTTPException(502, f"Gemma API error: {resp.text[:300]}")
+        content = resp.json()["choices"][0]["message"]["content"]
+        # Parse JSON from response
+        import re as _re
+        m = _re.search(r'\{[\s\S]*"scripts"[\s\S]*\}', content)
+        if m:
+            parsed = json.loads(m.group())
+            scripts = parsed.get("scripts", [])
+        else:
+            scripts = []
+    except Exception as e:
+        return {"ok": False, "error": str(e), "scripts": [], "pages_analyzed": len(page_images)}
+
+    return {
+        "ok": True,
+        "scripts": scripts,
+        "method": "gemma-vision",
+        "pages_analyzed": len(page_images),
+        "dpi": dpi,
+        "persona": persona,
+        "pdf_id": pid,
+    }
+
 
 @app.post("/api/pdfs/{pid}/extract-diagrams")
 def extract_pdf_diagrams(pid: int, body: dict = {}):
@@ -481,12 +600,16 @@ def pdf_parse_with_vision(pid: int):
     diagram_context = build_diagram_context(diagrams)
 
     # 4. Generate scripts WITH diagram context
+    _conn_lb = db.get_conn()
+    _llm_backend = settings.get_setting(_conn_lb, "llm_backend", "openrouter")
+    _conn_lb.close()
     scripts = clean_and_generate(
         raw_text=result["text"],
         pdf_title=r["title"] or "",
         pdf_class=r["class"] or "",
         pdf_subject=r["subject"] or "",
         diagram_context=diagram_context,
+        llm_backend=_llm_backend,
     )
 
     # Ensure every segment has an image_prompt
@@ -643,11 +766,11 @@ def pdf_reanalyze_with_context(pid: int):
 
     # Extract text (fast pypdf pass)
     text_result = _extract(path)
-    raw_text = text_result["text"][:8000]
+    raw_text = text_result["text"][:32000]
 
-    # Render first 3 pages as images
+    # Render first 6 pages as images
     pages_analyzed = []
-    for pg in range(min(3, text_result.get("pages", 10))):
+    for pg in range(min(6, text_result.get("pages", 20))):
         img_path = _get_pdf_page_image(path, pg, dpi=100)
         if not img_path:
             continue
@@ -670,8 +793,8 @@ def pdf_reanalyze_with_context(pid: int):
 
     context_prompt = (
         f"Textbook: Class {r['class']}, Subject: {r.get('subject', '')}, Title: {r.get('title', '')}\n\n"
-        f"Extracted Text (first 8000 chars):\n{raw_text[:4000]}\n\n"
-        f"Visual Analysis of Pages:\n{diagram_summaries[:2000]}\n\n"
+        f"Extracted Text (first 32000 chars):\n{raw_text[:16000]}\n\n"
+        f"Visual Analysis of Pages:\n{diagram_summaries[:8000]}\n\n"
         "Based on ALL the above (text + images), provide a JSON response with:\n"
         "- chapter_name: the precise chapter name\n"
         "- chapter_number: the chapter number\n"
@@ -685,7 +808,7 @@ def pdf_reanalyze_with_context(pid: int):
     import base64, requests
     payload = {
         "messages": [{"role": "user", "content": [{"type": "text", "text": context_prompt}]}],
-        "max_tokens": 2048,
+        "max_tokens": 8192,
         "temperature": 0.1,
     }
     try:
@@ -796,7 +919,7 @@ def _identify_fresh(pid: int, path: str, task_id: str = ""):
             ocr_method = ocr_result.get("method", "pypdf")
             if ocr_text:
                 conn_ocr = db.get_conn()
-                preview = ocr_text[:4000]
+                preview = ocr_text[:16000]
                 conn_ocr.execute(
                     "UPDATE pdfs SET text_preview=? WHERE id=?",
                     (preview, pid),
@@ -1338,11 +1461,15 @@ def batch_parse_pdfs(body: dict = {}):
                     completed += 1
                     continue
                 result = _hybrid_extract(path)
+                _conn_lb = db.get_conn()
+                _llm_backend = settings.get_setting(_conn_lb, "llm_backend", "openrouter")
+                _conn_lb.close()
                 scripts = clean_and_generate(
                     raw_text=result["text"],
                     pdf_title=r["title"] or "",
                     pdf_class=r["class"] or "",
                     pdf_subject=r["subject"] or "",
+                    llm_backend=_llm_backend,
                 )
                 if scripts:
                     chapter_name = scripts[0]["title"] if scripts else None
@@ -2726,10 +2853,12 @@ def get_settings():
     conn = db.get_conn()
     watch_folders = settings.get_watch_folders(conn)
     watch_interval = settings.get_setting(conn, "watch_interval", 60)
+    llm_backend = settings.get_setting(conn, "llm_backend", "openrouter")
     conn.close()
     return {
         "watch_folders": watch_folders,
         "watch_interval": watch_interval,
+        "llm_backend": llm_backend,
     }
 
 
@@ -2765,6 +2894,19 @@ def set_watch_interval(body: dict):
     conn.commit()
     conn.close()
     return {"ok": True, "interval": interval}
+
+
+@app.post("/api/settings/llm-backend")
+def set_llm_backend(body: dict):
+    backend = body.get("backend", "openrouter")
+    if backend not in ("openrouter", "local"):
+        raise HTTPException(400, "backend must be 'openrouter' or 'local'")
+    conn = db.get_conn()
+    settings.set_setting(conn, "llm_backend", backend)
+    conn.commit()
+    conn.close()
+    log.info(f"LLM backend changed to: {backend}")
+    return {"ok": True, "llm_backend": backend}
 
 
 @app.post("/api/settings/scan-now")

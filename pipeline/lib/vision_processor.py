@@ -146,7 +146,7 @@ def analyze_page(image_path: str, task: str = "diagram", context_prefix: str = "
                 ],
             }
         ],
-        "max_tokens": 1024,
+        "max_tokens": 4096,
         "temperature": 0.3,
     }
 
@@ -237,7 +237,7 @@ def main():
         proc = subprocess.Popen(
             ["llama-server", "-m", model_path, "--mmproj", mmproj_path,
              "--host", "127.0.0.1", "--port", "8081",
-             "-ngl", "99", "-c", "8192", "--parallel", "1"],
+             "-ngl", "99", "--ctx-size", "32768", "--parallel", "2"],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
         print(f"llama-server started (PID {proc.pid}) on :8081")

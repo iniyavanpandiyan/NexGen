@@ -142,7 +142,7 @@ def _gemma_analyze_image(image_path: str, task: str = "diagram") -> dict:
                 ],
             }
         ],
-        "max_tokens": 2048,
+        "max_tokens": 4096,
         "temperature": 0.1,
     }
 
@@ -476,7 +476,7 @@ def build_diagram_context(diagrams: list) -> str:
             continue
         if page not in seen_pages:
             seen_pages.add(page)
-            trimmed = desc[:350].strip()
+            trimmed = desc[:1500].strip()
             parts.append(f"[Textbook Diagram on page {page + 1}: {trimmed}]")
     return "\n".join(parts) if parts else ""
 
