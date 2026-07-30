@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Classic Shorts Template — Demo</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+  /* ──────────────────────────────────────────────────
+     CANVAS — 1080x1920 dark stage. Full design
+     system in DESIGN.md. Edit values per video; keep families.
+     Palette: classic dev-tool dark theme —
+       - Deep navy canvas, slightly cooler than near-black
+       - Bright clean blue as the hero accent
+       - Sky blue secondary for CTA
+     ────────────────────────────────────────────────── */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1080px;
+    height: 1920px;
+    overflow: hidden;
+    background: #0E1420;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: #E8E9F0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ──────────────────────────────────────────────────
+     ROOT TOKENS — colors, spacing, type scale.
+     Override per video by changing these CSS vars.
+     Palette: generic dev-tool dark theme — no brand
+     signature. Deep navy + bright blue accents.
+     See DESIGN.md for provenance and swap instructions.
+     ────────────────────────────────────────────────── */
+  #root {
+    --bg:          #0E1420;
+    --surface:     #181F33;
+    --card:        #212944;
+    --text:        #E8E9F0;
+    --text-dim:    #9A9BA3;
+    --cyan:        #4D8FF7;   /* bright clean blue — primary slam / hero accent */
+    --magenta:     #7AC4F5;   /* lighter sky blue — CTA / secondary accent */
+    --purple:      #8B7FE8;   /* soft indigo — secondary feature */
+    --blue:        #5EDBA4;   /* calm teal-green — workhorse */
+    --yellow:      #E0AD3D;   /* warning only */
+    --red:         #DC4838;   /* error only */
+    --pill-bg:     rgba(232, 233, 240, 0.06);
+    --pill-border: rgba(232, 233, 240, 0.16);
+
+    --pad-top:    240px;
+    --pad-x:      60px;
+    --pad-bottom: 240px;
+
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+
+  /* Ambient — blue + indigo radial drifts, classic dev-tool feel.
+     Two corners, opposite hues, 10% alpha each. Sine-yoyo over ~12s for
+     subtle life without competing with phase content. */
+  #ambient {
+    position: absolute;
+    inset: -200px;
+    background:
+      radial-gradient(circle at 30% 25%, rgba(77, 143, 247, 0.10), transparent 60%),
+      radial-gradient(circle at 75% 80%, rgba(139, 127, 232, 0.08), transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Film-grain overlay — fractal noise via SVG feTurbulence, blended over the
+     entire stack to break up gradient banding under H.264. Highest z-index so
+     it tints everything below. */
+  #noise-overlay {
+    position: absolute;
+    inset: 0;
+    width: 1080px;
+    height: 1920px;
+    pointer-events: none;
+    z-index: 11;
+    opacity: 0.035;
+    mix-blend-mode: overlay;
+  }
+
+  /* ──────────────────────────────────────────────────
+     TOP CHROME — persistent banner across all phases.
+     Classic template uses a CSS-rendered "YOUR BRAND"
+     wordmark — placeholder for the user to replace.
+     The wordmark is centered at ~972px width with a
+     bright-blue to sky-blue gradient fill.
+     See assets/wordmark-placeholder.txt for SVG swap notes.
+     TODO: Replace "YOUR BRAND" with your actual brand name.
+     ────────────────────────────────────────────────── */
+  #top-banner {
+    position: absolute;
+    top: 60px;
+    left: 0;
+    width: 1080px;
+    z-index: 10;
+    pointer-events: none;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
+    text-align: center;
+  }
+  #top-banner-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 972px;
+  }
+  #top-banner-wordmark {
+    font-family: var(--sans);
+    font-weight: 900;
+    font-size: 96px;
+    letter-spacing: 6px;
+    line-height: 1;
+    background: linear-gradient(135deg, var(--cyan), var(--magenta));
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  /* Slim progress bar — bottom edge, blue accent */
+  #progress-track {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 1080px;
+    height: 6px;
+    background: rgba(232, 233, 240, 0.06);
+    z-index: 10;
+  }
+  #progress-fill {
+    width: 0;
+    height: 100%;
+    background: var(--cyan);
+    box-shadow: 0 0 12px rgba(77, 143, 247, 0.6);
+  }
+
+  /* ──────────────────────────────────────────────────
+     PHASES — full-bleed, layered. Phase 1 visible by
+     default; phases 2-4 start at opacity 0. Crossfades
+     between phases handle scene change (no exits on
+     individual elements — see DESIGN.md motion rules).
+     ────────────────────────────────────────────────── */
+  .phase {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1080px;
+    height: 1920px;
+    overflow: hidden;
+  }
+  #phase1 { z-index: 1; opacity: 1; }
+  #phase2 { z-index: 2; opacity: 0; }
+  #phase3 { z-index: 3; opacity: 0; }
+  #phase4 { z-index: 4; opacity: 0; }
+
+  .phase-content {
+    width: 100%;
+    height: 100%;
+    padding: var(--pad-top) var(--pad-x) var(--pad-bottom);
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+
+  /* Mono overline — every phase opens with one of these */
+  .overline {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 36px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+  }
+
+  /* ──────────────────────────────────────────────────
+     PHASE 1 — HERO SLAM
+     Pattern: overline -> secondary line -> gradient slam word + caption pill.
+     The hero word uses bright-blue->sky-blue gradient text fill — the
+     signature classic flourish. Use ONCE per video.
+     ────────────────────────────────────────────────── */
+  #phase1 .phase-content {
+    align-items: center;
+    justify-content: flex-start;
+    text-align: center;
+    gap: 28px;
+  }
+  #p1-overline { color: var(--cyan); }
+  #p1-pre {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 68px;
+    line-height: 1.05;
+    color: var(--text);
+    max-width: 920px;
+  }
+  #p1-hero {
+    /* Tune size to your slam word: 200px fits ~7 chars (e.g. SHIPPED).
+       For longer words (8-10 chars) drop to 160-180px. The validator's
+       inspect step will flag overflow if you push it. */
+    font-family: var(--sans);
+    font-weight: 900;
+    font-size: 200px;
+    line-height: 0.9;
+    letter-spacing: -4px;
+    background: linear-gradient(135deg, var(--cyan), var(--magenta));
+    background-size: 200% 200%;
+    background-position: 0% 50%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    /* drop-shadow on the element (not text-shadow on the text — text-shadow
+       can't render through transparent fill). Two stacked drop-shadows give
+       both an outer glow and a grounding shadow. */
+    filter: drop-shadow(0 0 60px rgba(77, 143, 247, 0.40)) drop-shadow(0 8px 24px rgba(0,0,0,0.6));
+    max-width: 920px;
+  }
+  #p1-caption {
+    margin-top: 32px;
+    padding: 14px 28px;
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 32px;
+    letter-spacing: 2px;
+    color: var(--text);
+    background: var(--pill-bg);
+    border: 1.5px solid var(--pill-border);
+    border-radius: 999px;
+  }
+
+  /* ──────────────────────────────────────────────────
+     PHASE 2 — STAT PILL ROW
+     Pattern: overline -> headline -> 2 huge stat pills, color-rotated.
+     ────────────────────────────────────────────────── */
+  #phase2 .phase-content {
+    align-items: center;
+    justify-content: flex-start;
+    text-align: center;
+    gap: 36px;
+  }
+  #p2-overline { color: var(--cyan); }
+  #p2-headline {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 64px;
+    line-height: 1.05;
+    color: var(--text);
+    max-width: 920px;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+  }
+  #p2-pills {
+    display: flex;
+    flex-direction: row;
+    gap: 18px;
+  }
+  .stat-pill {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 460px;
+    min-height: 300px;
+    padding: 44px 24px;
+    border-radius: 24px;
+  }
+  .stat-pill.cyan {
+    background: linear-gradient(135deg, rgba(77,143,247,0.20), rgba(77,143,247,0.06));
+    border: 2px solid rgba(77,143,247,0.40);
+    box-shadow: 0 14px 36px rgba(77,143,247,0.20);
+  }
+  .stat-pill.magenta {
+    background: linear-gradient(135deg, rgba(122,196,245,0.20), rgba(122,196,245,0.06));
+    border: 2px solid rgba(122,196,245,0.40);
+    box-shadow: 0 14px 36px rgba(122,196,245,0.20);
+  }
+  .stat-num {
+    font-family: var(--sans);
+    font-weight: 900;
+    font-size: 180px;
+    line-height: 0.9;
+    letter-spacing: -4px;
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  .stat-pill.cyan    .stat-num { color: var(--cyan);    text-shadow: 0 0 60px rgba(77,143,247,0.40); }
+  .stat-pill.magenta .stat-num { color: var(--magenta); text-shadow: 0 0 60px rgba(122,196,245,0.40); }
+  .stat-label {
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 30px;
+    letter-spacing: 2px;
+    color: var(--text);
+    text-align: center;
+  }
+
+  /* ──────────────────────────────────────────────────
+     PHASE 3 — TIMELINE / FEATURE CARDS
+     Pattern: overline -> 3 feature cards, accent rotation.
+     Rotation: bright-blue -> soft-indigo -> teal-green.
+     Sky blue (--magenta) is reserved for CTA (Phase 4).
+     ────────────────────────────────────────────────── */
+  #phase3 .phase-content {
+    align-items: center;
+    justify-content: flex-start;
+    text-align: center;
+    gap: 36px;
+  }
+  #p3-overline { color: var(--text); }
+  .timeline-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    width: 940px;
+  }
+  .tl-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 26px;
+    padding: 22px 28px;
+    border-radius: 20px;
+  }
+  .tl-card.cyan {
+    background: linear-gradient(135deg, rgba(77,143,247,0.15), rgba(77,143,247,0.05));
+    border: 2px solid rgba(77,143,247,0.40);
+    box-shadow: 0 10px 30px rgba(77,143,247,0.20);
+  }
+  .tl-card.purple {
+    background: linear-gradient(135deg, rgba(139,127,232,0.15), rgba(139,127,232,0.05));
+    border: 2px solid rgba(139,127,232,0.40);
+    box-shadow: 0 10px 30px rgba(139,127,232,0.20);
+  }
+  .tl-card.blue {
+    background: linear-gradient(135deg, rgba(94,219,164,0.15), rgba(94,219,164,0.05));
+    border: 2px solid rgba(94,219,164,0.40);
+    box-shadow: 0 10px 30px rgba(94,219,164,0.20);
+  }
+  .tl-date {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 160px;
+    padding: 14px 18px;
+    border-radius: 14px;
+    font-family: var(--mono);
+    font-weight: 900;
+    font-size: 38px;
+    letter-spacing: 1px;
+    line-height: 1;
+    color: var(--bg);
+  }
+  .tl-card.cyan   .tl-date { background: var(--cyan); }
+  .tl-card.purple .tl-date { background: var(--purple); }
+  .tl-card.blue   .tl-date { background: var(--blue); }
+  .tl-body { display: flex; flex-direction: column; gap: 6px; flex: 1; text-align: left; }
+  .tl-title {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 40px;
+    line-height: 1.1;
+    color: var(--text);
+  }
+  .tl-sub {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 28px;
+    letter-spacing: 1px;
+  }
+  .tl-card.cyan   .tl-sub { color: var(--cyan); }
+  .tl-card.purple .tl-sub { color: var(--purple); }
+  .tl-card.blue   .tl-sub { color: var(--blue); }
+  .tl-index {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    font-family: var(--mono);
+    font-weight: 900;
+    font-size: 34px;
+    line-height: 1;
+  }
+  .tl-card.cyan   .tl-index { background: rgba(77,143,247,0.20);  border: 1.5px solid rgba(77,143,247,0.40);  color: var(--cyan); }
+  .tl-card.purple .tl-index { background: rgba(139,127,232,0.20); border: 1.5px solid rgba(139,127,232,0.40); color: var(--purple); }
+  .tl-card.blue   .tl-index { background: rgba(94,219,164,0.20);  border: 1.5px solid rgba(94,219,164,0.40);  color: var(--blue); }
+
+  /* ──────────────────────────────────────────────────
+     PHASE 4 — CTA / URL SLAM
+     Pattern: overline -> URL slam -> subscribe pill.
+     Sky blue (--magenta) closes the rotation (bright blue opened in Phase 1).
+     TODO: Replace "your-domain.com" with your real URL.
+     ────────────────────────────────────────────────── */
+  #phase4 .phase-content {
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 36px;
+  }
+  #p4-overline { color: var(--magenta); }
+  #p4-url {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 72px;
+    letter-spacing: 2px;
+    color: var(--text);
+    line-height: 1.0;
+    padding: 22px 36px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, rgba(122,196,245,0.18), rgba(122,196,245,0.05));
+    border: 2px solid rgba(122,196,245,0.40);
+    box-shadow: 0 14px 36px rgba(122,196,245,0.25);
+    max-width: 920px;
+  }
+  #p4-subscribe {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 36px;
+    border-radius: 999px;
+    background: var(--pill-bg);
+    border: 1.5px solid var(--pill-border);
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 38px;
+    color: var(--text);
+    letter-spacing: 0.5px;
+  }
+  #p4-subscribe .arrow {
+    color: var(--cyan);
+    font-family: var(--sans);
+    font-weight: 400;
+    font-size: 48px;
+    line-height: 0.7;
+  }
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="main"
+     data-start="0"
+     data-duration="24"
+     data-width="1080"
+     data-height="1920">
+
+  <!-- Ambient blue + indigo radial wash -->
+  <div id="ambient"></div>
+
+  <!-- Persistent top banner: CSS-rendered YOUR BRAND wordmark.
+       No icon PNG — the wordmark is standalone and centered.
+       TODO: Replace "YOUR BRAND" with your actual brand name, or drop an SVG
+       into assets/ and follow the swap instructions in assets/wordmark-placeholder.txt.
+       See assets/wordmark-placeholder.txt for SVG swap instructions. -->
+  <div id="top-banner">
+    <div id="top-banner-content">
+      <div id="top-banner-wordmark">YOUR BRAND</div>
+    </div>
+  </div>
+
+  <!-- Slim progress bar -->
+  <div id="progress-track"><div id="progress-fill"></div></div>
+
+  <!-- =======================================================
+       PHASE 1 — HERO SLAM (0-6s)
+       Blue-led. Hero word uses bright-blue->sky-blue gradient fill.
+       ======================================================= -->
+  <div id="phase1" class="phase">
+    <div class="phase-content">
+      <div class="overline" id="p1-overline">WORKFLOW</div>
+      <div id="p1-pre">Three commands.</div>
+      <div id="p1-hero">SHIPPED.</div>
+      <div id="p1-caption">From idea to preview.</div>
+    </div>
+  </div>
+
+  <!-- =======================================================
+       PHASE 2 — STAT PILL ROW (6-12s)
+       Bright blue + sky blue — bookend accents.
+       ======================================================= -->
+  <div id="phase2" class="phase">
+    <div class="phase-content">
+      <div class="overline" id="p2-overline">NUMBERS</div>
+      <div id="p2-headline">Repeatable, fast, dev-friendly.</div>
+      <div id="p2-pills">
+        <div class="stat-pill cyan" id="p2-pill-1">
+          <div class="stat-num">4</div>
+          <div class="stat-label">phases per short</div>
+        </div>
+        <div class="stat-pill magenta" id="p2-pill-2">
+          <div class="stat-num">1</div>
+          <div class="stat-label">command to run</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =======================================================
+       PHASE 3 — FEATURE CARDS (12-18s)
+       Bright blue / soft indigo / teal-green rotation.
+       ======================================================= -->
+  <div id="phase3" class="phase">
+    <div class="phase-content">
+      <div class="overline" id="p3-overline">WHAT IT DOES</div>
+      <div class="timeline-list">
+        <div class="tl-card cyan" id="p3-card-1">
+          <div class="tl-date">01</div>
+          <div class="tl-body">
+            <div class="tl-title">Plan</div>
+            <div class="tl-sub">Outline the video angle</div>
+          </div>
+          <div class="tl-index">01</div>
+        </div>
+        <div class="tl-card purple" id="p3-card-2">
+          <div class="tl-date">02</div>
+          <div class="tl-body">
+            <div class="tl-title">Build</div>
+            <div class="tl-sub">Script, TTS, HTML composition</div>
+          </div>
+          <div class="tl-index">02</div>
+        </div>
+        <div class="tl-card blue" id="p3-card-3">
+          <div class="tl-date">03</div>
+          <div class="tl-body">
+            <div class="tl-title">Ship</div>
+            <div class="tl-sub">Lint, inspect, preview</div>
+          </div>
+          <div class="tl-index">03</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =======================================================
+       PHASE 4 — CTA / URL SLAM (18-24s)
+       Sky blue closes (bright blue opened the video).
+       TODO: Replace "your-domain.com" with your real URL.
+       ======================================================= -->
+  <div id="phase4" class="phase">
+    <div class="phase-content">
+      <div class="overline" id="p4-overline">GET STARTED</div>
+      <div id="p4-url">your-domain.com</div>
+      <div id="p4-subscribe">Subscribe<span class="arrow">&rarr;</span></div>
+    </div>
+  </div>
+
+  <!-- =======================================================
+       NARRATION + SFX
+       Rules:        .claude/rules/audio-design.md
+       Cue catalog:  shared/audio/MANIFEST.md
+       Sync into this project (after you copy this template):
+         bash scripts/sync-video-sfx.sh videos/<slug> impact-slam spring-pop
+       Then uncomment the blocks below and tune the data-* values per scene.
+       ======================================================= -->
+
+  <!--
+  Narration — single track, replaces this comment in real videos.
+
+    audio id="narration"
+           class="clip"
+           src="audio/narration.wav"
+           data-start="0"
+           data-duration="0"
+           data-track-index="2"
+           data-volume="1"
+
+  Optional sonic-logo at composition start (sync first: sync-video-sfx.sh ... sonic-logo).
+
+    audio id="sonic-logo"
+           class="clip"
+           src="assets/sfx/sonic-logo.mp3"
+           data-start="0"
+           data-duration="1.5"
+           data-track-index="3"
+           data-volume="0.45"
+
+  Per-cue SFX — one element per beat. data-track-index 3+ for SFX; bump per
+  concurrent cue. data-volume per .claude/rules/audio-design.md (<= 0.25).
+
+    audio id="sfx-impact"
+           class="clip"
+           src="assets/sfx/impact-slam.mp3"
+           data-start="1.55"
+           data-duration="0.6"
+           data-track-index="3"
+           data-volume="0.15"
+
+    audio id="sfx-whoosh"
+           class="clip"
+           src="assets/sfx/cinematic-whoosh.mp3"
+           data-start="3.20"
+           data-duration="0.8"
+           data-track-index="4"
+           data-volume="0.11"
+  -->
+
+  <!-- Film-grain overlay — last child so it sits on top and tints everything via blend mode -->
+  <svg id="noise-overlay" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="noise-filter" x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="4" seed="42" stitchTiles="stitch" result="noise" />
+        <feColorMatrix type="saturate" values="0" in="noise" result="monoNoise" />
+      </filter>
+    </defs>
+    <rect width="100%" height="100%" filter="url(#noise-filter)" fill="white" />
+  </svg>
+</div>
+
+<script>
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+
+  // ─────────────────────────────────────────────────────
+  // Ambient: slow blue+indigo breath across full duration
+  // ─────────────────────────────────────────────────────
+  tl.fromTo("#ambient",
+    { opacity: 0.85, scale: 1.0 },
+    { opacity: 1.0, scale: 1.04, duration: 12, ease: "sine.inOut", yoyo: true, repeat: 1 },
+    0);
+
+  // Progress bar fills linearly across the composition (24s total)
+  tl.fromTo("#progress-fill",
+    { width: 0 },
+    { width: 1080, duration: 24, ease: "none" },
+    0);
+
+  // Top banner fade-in (one-shot, then static)
+  tl.from("#top-banner", { y: -20, opacity: 0, duration: 0.6, ease: "power2.out" }, 0.2);
+
+  // =======================================================
+  // PHASE 1 — Hero slam (0-6s) : entrances only
+  // =======================================================
+  tl.from("#p1-overline", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, 0.4);
+  tl.from("#p1-pre",      { y: 30, opacity: 0, duration: 0.6, ease: "power3.out" }, 0.8);
+  tl.from("#p1-hero",     { scale: 0.78, opacity: 0, duration: 0.8, ease: "back.out(1.7)" }, 1.4);
+  // Gradient drift on the hero word — bright-blue->sky-blue sweeps left->right across its lifetime.
+  // sine.inOut so the motion is breathing, not linear. No repeat — single sweep.
+  const gradient_drift_duration = 4.0;
+  tl.fromTo("#p1-hero",
+    { backgroundPosition: "0% 50%" },
+    { backgroundPosition: "100% 50%", duration: gradient_drift_duration, ease: "sine.inOut" },
+    1.6);
+  // Inline shake on the slam frame — 4 short ticks +-5px, then settle
+  const shake_offsets = [5, -5, 4, 0];
+  const slam_t = 1.55;
+  tl.to("#p1-hero", { x: shake_offsets[0], duration: 0.04, ease: "none", overwrite: "auto" }, slam_t);
+  tl.to("#p1-hero", { x: shake_offsets[1], duration: 0.04, ease: "none", overwrite: "auto" }, slam_t + 0.05);
+  tl.to("#p1-hero", { x: shake_offsets[2], duration: 0.04, ease: "none", overwrite: "auto" }, slam_t + 0.10);
+  tl.to("#p1-hero", { x: shake_offsets[3], duration: 0.04, ease: "none", overwrite: "auto" }, slam_t + 0.15);
+  tl.from("#p1-caption", { y: 24, opacity: 0, duration: 0.5, ease: "power2.out" }, 2.2);
+
+  // --- Transition phase1 -> phase2 at 5.6s : blur + crossfade ---
+  const T1 = 5.6;
+  tl.to("#phase1", { filter: "blur(20px)", scale: 1.04, duration: 0.5, ease: "power1.in" }, T1);
+  tl.to("#phase1", { opacity: 0,                          duration: 0.4, ease: "power1.in" }, T1 + 0.3);
+  tl.set("#phase1", { visibility: "hidden" }, T1 + 0.7);
+  tl.set("#phase2", { filter: "blur(20px)", scale: 0.97, opacity: 0, visibility: "visible" }, T1 + 0.4);
+  tl.to("#phase2", { opacity: 1,                         duration: 0.3, ease: "power1.inOut", overwrite: "auto" }, T1 + 0.4);
+  tl.to("#phase2", { filter: "blur(0px)", scale: 1,      duration: 0.5, ease: "power1.out",   overwrite: "auto" }, T1 + 0.6);
+
+  // =======================================================
+  // PHASE 2 — Stat pill row (6-12s) : entrances only
+  // =======================================================
+  const P2 = 6.4;
+  tl.from("#p2-overline", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, P2 + 0.0);
+  tl.from("#p2-headline", { y: 30, opacity: 0, duration: 0.6, ease: "power3.out" }, P2 + 0.3);
+  tl.from("#p2-pill-1",   { scale: 0.85, opacity: 0, duration: 0.6, ease: "back.out(1.6)" }, P2 + 0.9);
+  tl.from("#p2-pill-2",   { scale: 0.85, opacity: 0, duration: 0.6, ease: "back.out(1.6)" }, P2 + 1.4);
+
+  // --- Transition phase2 -> phase3 at 11.6s ---
+  const T2 = 11.6;
+  tl.to("#phase2", { filter: "blur(20px)", scale: 1.04, duration: 0.5, ease: "power1.in" }, T2);
+  tl.to("#phase2", { opacity: 0,                          duration: 0.4, ease: "power1.in" }, T2 + 0.3);
+  tl.set("#phase2", { visibility: "hidden" }, T2 + 0.7);
+  tl.set("#phase3", { filter: "blur(20px)", scale: 0.97, opacity: 0, visibility: "visible" }, T2 + 0.4);
+  tl.to("#phase3", { opacity: 1,                         duration: 0.3, ease: "power1.inOut", overwrite: "auto" }, T2 + 0.4);
+  tl.to("#phase3", { filter: "blur(0px)", scale: 1,      duration: 0.5, ease: "power1.out",   overwrite: "auto" }, T2 + 0.6);
+
+  // =======================================================
+  // PHASE 3 — Feature cards (12-18s) : entrances only
+  // =======================================================
+  const P3 = 12.4;
+  tl.from("#p3-overline", { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, P3 + 0.0);
+  tl.from("#p3-card-1",   { x: -40, scale: 0.95, opacity: 0, duration: 0.55, ease: "back.out(1.5)" }, P3 + 0.5);
+  tl.from("#p3-card-2",   { x: -40, scale: 0.95, opacity: 0, duration: 0.55, ease: "back.out(1.5)" }, P3 + 0.95);
+  tl.from("#p3-card-3",   { x: -40, scale: 0.95, opacity: 0, duration: 0.55, ease: "back.out(1.5)" }, P3 + 1.4);
+
+  // --- Transition phase3 -> phase4 at 17.6s ---
+  const T3 = 17.6;
+  tl.to("#phase3", { filter: "blur(20px)", scale: 1.04, duration: 0.5, ease: "power1.in" }, T3);
+  tl.to("#phase3", { opacity: 0,                          duration: 0.4, ease: "power1.in" }, T3 + 0.3);
+  tl.set("#phase3", { visibility: "hidden" }, T3 + 0.7);
+  tl.set("#phase4", { filter: "blur(20px)", scale: 0.97, opacity: 0, visibility: "visible" }, T3 + 0.4);
+  tl.to("#phase4", { opacity: 1,                         duration: 0.3, ease: "power1.inOut", overwrite: "auto" }, T3 + 0.4);
+  tl.to("#phase4", { filter: "blur(0px)", scale: 1,      duration: 0.5, ease: "power1.out",   overwrite: "auto" }, T3 + 0.6);
+
+  // =======================================================
+  // PHASE 4 — CTA URL slam (18-24s) : entrances only
+  // =======================================================
+  const P4 = 18.4;
+  tl.from("#p4-overline",  { y: 20, opacity: 0, duration: 0.5, ease: "power2.out" }, P4 + 0.0);
+  tl.from("#p4-url",       { scale: 0.85, opacity: 0, duration: 0.7, ease: "expo.out" }, P4 + 0.5);
+  tl.from("#p4-subscribe", { y: 24, opacity: 0, duration: 0.5, ease: "power2.out" }, P4 + 1.6);
+
+  // Phase 4 stays fully visible to the end — composition naturally ends at 24s
+
+  window.__timelines["main"] = tl;
+</script>
+</body>
+</html>

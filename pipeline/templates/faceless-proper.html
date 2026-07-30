@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1080,height=1920"/>
+<title>What Is a Scientific Model?</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#0E1420;color:#E8E9F0;font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+
+#bg{position:absolute;inset:-200px;background:radial-gradient(circle at 30% 25%,rgba(77,143,247,0.08),transparent 60%),radial-gradient(circle at 75% 80%,rgba(139,127,232,0.06),transparent 55%);pointer-events:none;z-index:0}
+
+/* Film grain */
+#grain{position:absolute;inset:0;z-index:10;pointer-events:none;opacity:.03}
+#grain svg{width:100%;height:100%}
+
+/* Each scene is a clip element managed by HyperFrames */
+.clip{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:140px 60px 180px;opacity:0}
+
+/* Keyword pill — animated, slides up with bounce */
+.kw-pill{display:inline-block;padding:4px 14px;margin:0 2px;border-radius:999px;background:rgba(77,143,247,0.12);border:1px solid rgba(77,143,247,0.2);font-weight:600;font-size:inherit}
+
+/* Hero word — large animated keyword slam */
+.hero{font-size:96px;font-weight:800;line-height:1;letter-spacing:-3px;margin-bottom:24px}
+.hero .grad{background:linear-gradient(135deg,#4D8FF7,#7AC4F5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+
+/* Body text */
+.body{font-size:40px;line-height:1.4;text-align:center;max-width:880px;font-weight:400;color:#C8CCD4}
+.body strong{color:#fff}
+
+/* Overline tag */
+.tag{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#4D8FF7;margin-bottom:20px;align-self:flex-start}
+.tag .accent{color:#7AC4F5;margin-left:8px}
+
+/* Stat pill */
+.stat-row{display:flex;gap:16px;margin-top:20px}
+.stat-pill{padding:16px 32px;border-radius:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;align-items:center;gap:4px}
+.stat-num{font-size:56px;font-weight:800;background:linear-gradient(135deg,#4D8FF7,#7AC4F5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-label{font-size:18px;color:#9A9BA3}
+
+/* Progress bar */
+#progress{position:absolute;left:0;bottom:0;height:5px;width:0%;background:linear-gradient(90deg,#4D8FF7,#7AC4F5);z-index:12}
+audio{display:none}
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-width="1080" data-height="1920" data-duration="__DUR__" data-fps="30">
+<div id="bg"></div>
+<div id="grain"><svg viewBox="0 0 1080 1920"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter><rect width="1080" height="1920" filter="url(#n)"/></svg></div>
+
+__SCENES__
+
+<audio src="narration.wav" data-start="0" data-duration="__DUR__" data-volume="1" preload="auto"></audio>
+<div id="progress"></div>
+</div>
+<script>
+(function(){
+var tl=gsap.timeline({paused:true});
+__TIMELINE__
+window.__timelines=window.__timelines||{};window.__timelines["main"]=tl;
+})();
+</script>
+</body>
+</html>

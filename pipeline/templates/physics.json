@@ -1,0 +1,24 @@
+{
+  "id": "physics",
+  "name": "Quantum Slate",
+  "subject": "Physics",
+  "description": "Dark technical theme — charcoal slate ground, electric cyan ink, single amber signal accent. Fine dotted reference grid, vector force-arrows, circuit motifs. Space Grotesk geometric display + IBM Plex Mono chrome. Reads 'physics lab / instrumentation'.",
+  "palette": {
+    "paper": "#14171F",
+    "paper2": "#1C212C",
+    "ink": "#35E0D0",
+    "ink_soft": "#5BE8DF",
+    "accent": "#FFB000",
+    "grid": "rgba(53,224,208,0.08)",
+    "ink_faint": "rgba(53,224,208,0.18)"
+  },
+  "fonts": {
+    "display": "Space Grotesk",
+    "body": "Space Grotesk",
+    "mono": "IBM Plex Mono",
+    "google": "Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500"
+  },
+  "motif": "dotted reference grid + force-vector arrows + circuit traces + scanline",
+  "icon_style": "cyan stroke technical schematic, amber signal dot",
+  "image_style_suffix": " technical schematic illustration in the style of a physics instrumentation diagram, electric cyan (#35E0D0) line-art and glow on a dark charcoal (#14171F) ground, single amber (#FFB000) signal accent, vector force arrows, NO text labels, clean blueprint composition"
+}

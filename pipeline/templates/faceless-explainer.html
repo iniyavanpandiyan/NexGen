@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>What Is a Scientific Model?</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 1080px; height: 1920px; overflow: hidden;
+    background: #0E1420;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: #E8E9F0;
+    -webkit-font-smoothing: antialiased;
+  }
+  #root {
+    --bg: #0E1420; --surface: #181F33; --card: #212944;
+    --text: #E8E9F0; --text-dim: #9A9BA3;
+    --cyan: #4D8FF7; --magenta: #7AC4F5;
+    --purple: #8B7FE8; --blue: #5EDBA4; --yellow: #E0AD3D; --red: #DC4838;
+    --pill-bg: rgba(232,233,240,0.06);
+    --pill-border: rgba(232,233,240,0.16);
+    --pad-top: 180px; --pad-x: 60px; --pad-bottom: 200px;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+
+  #ambient {
+    position: absolute; inset: -200px;
+    background: radial-gradient(circle at 30% 25%, rgba(77,143,247,0.10), transparent 60%),
+                radial-gradient(circle at 75% 80%, rgba(139,127,232,0.08), transparent 55%);
+    pointer-events: none; z-index: 0;
+  }
+
+  #noise-overlay {
+    position: absolute; inset: 0; width: 1080px; height: 1920px;
+    pointer-events: none; z-index: 11; opacity: 0.035;
+  }
+  #noise-overlay svg { width: 100%; height: 100%; }
+
+  .phase {
+    position: absolute; inset: 0; width: 1080px; height: 1920px;
+    display: flex; flex-direction: column; align-items: center;
+    padding: var(--pad-top) var(--pad-x) var(--pad-bottom);
+    z-index: 1; opacity: 0; pointer-events: none;
+  }
+
+  .phase-content {
+    display: flex; flex-direction: column; align-items: center;
+    width: 100%; max-width: 960px; flex: 1;
+  }
+
+  /* Image card with polaroid-style frame */
+  .image-card {
+    position: relative; width: 720px; margin: 20px 0;
+    background: #1a1a2e; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .image-card img {
+    width: 100%; display: block;
+  }
+  .image-frame {
+    position: absolute; inset: 0;
+    border: 3px solid rgba(255,255,255,0.08);
+    border-radius: 16px; pointer-events: none;
+  }
+  .image-glow {
+    position: absolute; inset: -2px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, transparent 40%, rgba(77,143,247,0.15) 100%);
+    pointer-events: none;
+  }
+
+  /* Caption pill */
+  .caption-pill {
+    margin-top: 28px;
+    padding: 18px 36px;
+    font-family: var(--sans); font-weight: 500; font-size: 38px;
+    line-height: 1.3; text-align: center;
+    color: var(--text);
+    background: var(--pill-bg);
+    border: 1.5px solid var(--pill-border);
+    border-radius: 999px;
+    max-width: 920px;
+    backdrop-filter: blur(10px);
+  }
+  .caption-pill .kw {
+    display: inline-block; color: var(--text-dim);
+    transition: color 0.08s ease;
+  }
+  .caption-pill .kw.is-active { color: var(--cyan); }
+  .caption-pill .kw.is-spoken { color: var(--text); }
+
+  /* Overline */
+  .overline {
+    font-family: var(--mono); font-weight: 600; font-size: 24px;
+    letter-spacing: 4px; text-transform: uppercase;
+    color: var(--cyan); margin-bottom: 12px;
+  }
+
+  /* Progress bar */
+  #progress {
+    position: absolute; left: 0; bottom: 0; height: 6px; width: 0%;
+    background: linear-gradient(90deg, var(--cyan), var(--magenta));
+    z-index: 6;
+  }
+
+  /* SFX Canvas */
+  #sfx-audio { display: none; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-width="1080" data-height="1920" data-duration="__VIDEO_DURATION__" data-fps="30">
+
+  <div id="ambient"></div>
+
+  <div id="noise-overlay">
+    <svg viewBox="0 0 1080 1920" preserveAspectRatio="none">
+      <filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter>
+      <rect width="1080" height="1920" filter="url(#n)"/>
+    </svg>
+  </div>
+
+  <div id="phase-1" class="phase" data-track-index="0">
+    <div class="phase-content">
+      <div class="overline">Science · Class 9</div>
+      <div class="image-card" id="img-1">
+        <img src="" alt="" id="seg-img-0" />
+        <div class="image-frame"></div>
+        <div class="image-glow"></div>
+      </div>
+      <div class="caption-pill" id="cap-1">
+        <span class="kw" data-w="0">Have</span>
+        <span class="kw" data-w="1">you</span>
+        <span class="kw" data-w="2">ever</span>
+        <span class="kw" data-w="3">wondered</span>
+        <span class="kw" data-w="4">how</span>
+        <span class="kw" data-w="5">scientists</span>
+        <span class="kw" data-w="6">make</span>
+        <span class="kw" data-w="7">sense</span>
+        <span class="kw" data-w="8">of</span>
+        <span class="kw" data-w="9">incredibly</span>
+        <span class="kw" data-w="10">complex</span>
+        <span class="kw" data-w="11">things,</span>
+        <span class="kw" data-w="12">like</span>
+        <span class="kw" data-w="13">a</span>
+        <span class="kw" data-w="14">cricket</span>
+        <span class="kw" data-w="15">ball</span>
+        <span class="kw" data-w="16">flying</span>
+        <span class="kw" data-w="17">for</span>
+        <span class="kw" data-w="18">a</span>
+        <span class="kw" data-w="19">six?</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- more phases will be generated by the pipeline -->
+
+  <div id="progress"></div>
+  <div id="sfx-audio"></div>
+</div>
+
+<script>
+const WORDS = [
+  // Segment 0: "Have you ever wondered how scientists make sense of incredibly complex things, like a cricket ball flying for a six?" (5.28s)
+  {"w":"Have","s":0.0,"e":0.2},{"w":"you","s":0.2,"e":0.35},{"w":"ever","s":0.35,"e":0.5},{"w":"wondered","s":0.5,"e":0.8},{"w":"how","s":0.8,"e":0.95},{"w":"scientists","s":0.95,"e":1.3},{"w":"make","s":1.3,"e":1.5},{"w":"sense","s":1.5,"e":1.7},{"w":"of","s":1.7,"e":1.8},{"w":"incredibly","s":1.8,"e":2.1},{"w":"complex","s":2.1,"e":2.4},{"w":"things,","s":2.4,"e":2.7},{"w":"like","s":2.7,"e":2.9},{"w":"a","s":2.9,"e":3.0},{"w":"cricket","s":3.0,"e":3.3},{"w":"ball","s":3.3,"e":3.6},{"w":"flying","s":3.6,"e":3.9},{"w":"for","s":3.9,"e":4.0},{"w":"a","s":4.0,"e":4.1},{"w":"six?","s":4.1,"e":5.28}
+];
+
+(function() {
+  const tl = gsap.timeline({ paused: true });
+
+  // Phase 1: Fade in
+  tl.set("#phase-1", { opacity: 1 }, 0);
+  tl.from("#phase-1 .image-card", { opacity: 0, y: 40, scale: 0.95, duration: 0.6, ease: "power2.out" }, 0.1);
+  tl.from("#phase-1 .caption-pill", { opacity: 0, y: 20, duration: 0.4, ease: "power2.out" }, 0.5);
+  tl.from("#phase-1 .overline", { opacity: 0, y: -10, duration: 0.3, ease: "power2.out" }, 0);
+
+  // Karaoke word highlighting
+  WORDS.forEach(function(w) {
+    const idx = WORDS.indexOf(w);
+    tl.call(function() {
+      document.querySelectorAll('.kw.is-active').forEach(function(el) { el.classList.remove('is-active'); el.classList.add('is-spoken'); });
+      const kw = document.querySelector('.kw[data-w="' + idx + '"]');
+      if (kw) kw.classList.add('is-active');
+    }, [], w.s);
+    tl.call(function() {
+      const kw = document.querySelector('.kw[data-w="' + idx + '"]');
+      if (kw) { kw.classList.remove('is-active'); kw.classList.add('is-spoken'); }
+    }, [], w.e);
+  });
+
+  window.__timelines = window.__timelines || {};
+  window.__timelines["main"] = tl;
+})();
+</script>
+</body>
+</html>

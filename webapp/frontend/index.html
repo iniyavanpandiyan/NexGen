@@ -1,0 +1,1617 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>CBSE Video Studio</title>
+<style>
+  :root{
+    --glass-bg:rgba(12,14,20,0.88);
+    --glass-card:rgba(22,26,37,0.75);
+    --glass-card-hover:rgba(30,35,50,0.85);
+    --glass-border:rgba(255,255,255,0.06);
+    --glass-border-hover:rgba(255,255,255,0.12);
+    --glass-highlight:rgba(255,255,255,0.03);
+    --ink:#e0e4ed;
+    --ink-dim:rgba(224,228,237,0.55);
+    --ink-muted:rgba(224,228,237,0.35);
+    --cobalt:#4a7dff;
+    --cobalt-glow:rgba(74,125,255,0.2);
+    --rose:#e0457b;
+    --cyan:#35e0d0;
+    --amber:#ffb000;
+    --ok:#43d17a;
+    --bad:#ff5d6c;
+    --radius:14px;
+    --radius-sm:10px;
+    --shadow:0 8px 32px rgba(0,0,0,0.4);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font:14px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(ellipse at 20% 50%,rgba(20,30,60,0.6),transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(60,20,40,0.3),transparent 50%),#080a12;color:var(--ink);min-height:100vh}
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:10px}
+  ::selection{background:var(--cobalt);color:#fff}
+
+  /* glassmorphism base */
+  .glass{background:var(--glass-card);backdrop-filter:blur(20px) saturate(1.4);-webkit-backdrop-filter:blur(20px) saturate(1.4);border:1px solid var(--glass-border);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .glass-sm{background:var(--glass-card);backdrop-filter:blur(12px) saturate(1.3);-webkit-backdrop-filter:blur(12px) saturate(1.3);border:1px solid var(--glass-border);border-radius:var(--radius-sm)}
+  .glass-hover:hover{background:var(--glass-card-hover);border-color:var(--glass-border-hover)}
+  .glow-border{box-shadow:0 0 0 1px var(--glass-border),0 0 20px var(--cobalt-glow)}
+
+  /* header */
+  header{display:flex;align-items:center;gap:14px;padding:14px 22px;background:rgba(8,10,18,0.9);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);border-bottom:1px solid var(--glass-border);position:sticky;top:0;z-index:40}
+  header h1{font-size:16px;font-weight:600;letter-spacing:.02em;background:linear-gradient(135deg,#fff 40%,var(--cobalt));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  header .tag{font-size:11px;color:var(--ink-dim);font-family:ui-monospace,monospace}
+  nav{display:flex;gap:3px;margin-left:auto}
+  nav button{background:transparent;color:var(--ink-dim);border:1px solid transparent;padding:7px 14px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;transition:all .2s}
+  nav button:hover{background:var(--glass-card);color:var(--ink)}
+  nav button.active{color:#fff;background:var(--glass-card);border-color:var(--cobalt);box-shadow:0 0 16px var(--cobalt-glow)}
+
+  main{padding:20px 22px;max-width:1320px;margin:0 auto}
+  .view{display:none}
+  .view.active{display:block}
+  .view.active#catalog{padding-bottom:80px}
+  h2{font-size:15px;font-weight:600;margin:0 0 12px;color:#fff;letter-spacing:.01em}
+  h3{font-size:13px;font-weight:500;margin:0 0 8px;color:var(--ink)}
+
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .grid{display:grid;gap:12px}
+
+  input,select,textarea{background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);color:var(--ink);border-radius:var(--radius-sm);padding:9px 12px;font:inherit;width:100%;transition:border-color .2s}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cobalt);box-shadow:0 0 0 3px var(--cobalt-glow)}
+  textarea{resize:vertical;min-height:60px;font-family:ui-monospace,monospace;font-size:12px}
+  ::placeholder{color:var(--ink-muted)}
+
+  button.btn{background:linear-gradient(135deg,var(--cobalt),#3b66d4);color:#fff;border:0;border-radius:var(--radius-sm);padding:9px 16px;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s}
+  button.btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px var(--cobalt-glow)}
+  button.btn:active{transform:translateY(0)}
+  button.btn.ghost{background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);color:var(--ink-dim);box-shadow:none}
+  button.btn.ghost:hover{background:var(--glass-card);color:var(--ink);border-color:var(--glass-border-hover);transform:none;box-shadow:none}
+  button.btn.sm{padding:6px 12px;font-size:12px}
+  button.btn.danger{background:linear-gradient(135deg,var(--bad),#d9454f);color:#fff}
+  button.btn.ok{background:linear-gradient(135deg,var(--ok),#35b566);color:#000}
+
+  .pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;background:var(--glass-card);border:1px solid var(--glass-border);color:var(--ink-dim)}
+  .stat{color:var(--ink-dim);font-size:12px}
+  .muted{color:var(--ink-dim)}
+  .link{color:var(--cobalt);cursor:pointer;transition:color .15s}
+  .link:hover{color:#7ea6ff}
+  .badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:11px;background:var(--glass-card);border:1px solid var(--glass-border);color:var(--ink-dim)}
+  .error{color:var(--bad)}
+  .ok{color:var(--ok)}
+  .warn{color:var(--amber)}
+
+  /* catalog cards */
+  .cat-card{background:var(--glass-card);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border:1px solid var(--glass-border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;transition:border-color .2s,box-shadow .2s}
+  .cat-card:hover{border-color:var(--glass-border-hover);box-shadow:0 4px 24px rgba(0,0,0,0.3)}
+  .cat-header{display:flex;align-items:center;gap:10px;cursor:pointer;padding:14px 18px;transition:background .15s}
+  .cat-header:hover{background:var(--glass-highlight)}
+
+  /* facets */
+  .facets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .facet{cursor:pointer;padding:5px 12px;border-radius:999px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);color:var(--ink-dim);font-size:12px;transition:all .2s}
+  .facet:hover{background:var(--glass-card);color:var(--ink)}
+  .facet.on{color:#fff;border-color:var(--cobalt);background:rgba(74,125,255,0.15);box-shadow:0 0 12px var(--cobalt-glow)}
+
+  /* table */
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--glass-border);font-size:13px}
+  th{color:var(--ink-dim);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+  tr:hover td{background:var(--glass-highlight)}
+
+  /* seg cards */
+  .seg{background:var(--glass-card);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:8px}
+  .seg .idx{color:var(--ink-dim);font-family:ui-monospace,monospace;font-size:11px;margin-bottom:4px}
+
+  /* image grid */
+  .imgwrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .imgcard{border:1px solid var(--glass-border);border-radius:var(--radius-sm);overflow:hidden;background:var(--glass-card)}
+  .imgcard img{width:100%;display:block;background:rgba(0,0,0,0.4)}
+  .imgcard .meta{padding:8px}
+  .s-appro{color:var(--ok)} .s-rej{color:var(--bad)} .s-pend{color:var(--amber)}
+
+  /* templates */
+  .tpl{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+  .tplcard{background:var(--glass-card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all .25s}
+  .tplcard:hover{border-color:var(--cobalt);transform:translateY(-3px);box-shadow:0 8px 32px rgba(74,125,255,0.12)}
+
+  /* modals */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:50;display:none;align-items:center;justify-content:center}
+  .modal-overlay.show{display:flex}
+  .modal-card{background:var(--glass-card);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);border:1px solid var(--glass-border);border-radius:var(--radius);width:90%;max-width:960px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,0.5)}
+  .modal-card header{justify-content:space-between;flex:0 0 auto;background:rgba(8,10,18,0.6)}
+  .modal-close{background:transparent;border:0;color:var(--ink-dim);cursor:pointer;font-size:18px;padding:4px 10px;border-radius:6px;transition:all .15s}
+  .modal-close:hover{background:rgba(255,255,255,0.08);color:var(--ink)}
+
+  /* taskbar */
+  .taskbar{position:fixed;bottom:16px;right:16px;z-index:100;min-width:300px;max-width:400px}
+  .taskbar-toggle{display:flex;align-items:center;gap:6px;background:var(--glass-card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:8px 14px;font-size:12px;cursor:pointer;margin-left:auto;width:fit-content;transition:all .2s;color:var(--ink-dim)}
+  .taskbar-toggle:hover{border-color:var(--cobalt);color:var(--ink)}
+  .taskbar-toggle .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex-shrink:0}
+  .taskbar-toggle .dot.busy{animation:pulse-dot 1.2s ease-in-out infinite}
+  .taskbar-toggle .tb-summary{font-weight:500;white-space:nowrap}
+  .taskbar-toggle .tb-progress-text{font-size:11px;color:var(--ink-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+  .taskbar-toggle .tb-chevron{margin-left:auto;display:flex;align-items:center}
+  .tb-progress-bar{width:100%;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin:2px 0}
+  .tb-progress-fill{height:100%;background:var(--cobalt);border-radius:2px;transition:width .3s ease}
+  @keyframes shimmer{0%{opacity:.3}50%{opacity:1}100%{opacity:.3}}
+  @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.3}}
+  @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+  .spin{animation:spin .8s linear infinite;display:inline-block}
+  .taskbar-body{background:var(--glass-card);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);border:1px solid var(--glass-border);border-radius:var(--radius);overflow:hidden;margin-top:6px;box-shadow:0 8px 32px rgba(0,0,0,0.4)}
+  .taskbar-body.hidden{display:none}
+  .taskbar-head{display:flex;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--glass-border);font-size:11px;color:var(--ink-dim)}
+  .taskbar-list{max-height:280px;overflow-y:auto}
+  .taskbar-item{display:flex;align-items:center;gap:6px;padding:7px 14px;font-size:12px;border-bottom:1px solid var(--glass-border)}
+  .taskbar-item:last-child{border-bottom:none}
+  .taskbar-item .tb-icon{flex-shrink:0;width:14px;display:flex;align-items:center;justify-content:center}
+  .taskbar-item .tb-label{font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .taskbar-item .tb-msg{font-size:11px;color:var(--ink-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100px}
+  .taskbar-item .tb-progress{font-size:11px;color:var(--ink-dim);font-family:ui-monospace,monospace;flex-shrink:0}
+  .taskbar-item .tb-age{font-size:10px;color:var(--ink-muted);font-family:ui-monospace,monospace;flex-shrink:0}
+  .tb-done{color:var(--ok)} .tb-error{color:var(--bad)} .tb-running{color:var(--amber)} .tb-queued{color:var(--ink-muted)}
+
+  /* batch bar — floating center-bottom like taskbar */
+  .batch-bar{position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:90;background:var(--glass-card);backdrop-filter:blur(24px) saturate(1.5);-webkit-backdrop-filter:blur(24px) saturate(1.5);border:1px solid var(--glass-border);border-radius:var(--radius);padding:10px 18px;display:none;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 8px 32px rgba(0,0,0,0.4);max-width:90vw}
+  .batch-bar.show{display:flex}
+  .batch-bar .count{font-size:13px;font-weight:500;color:var(--ink);white-space:nowrap}
+  .batch-bar .sep{color:var(--ink-muted);font-size:11px}
+  .batch-bar .actions{display:flex;gap:6px;flex-wrap:wrap}
+  @media (max-width:760px){
+    .batch-bar{bottom:56px;padding:8px 12px;gap:5px;max-width:96vw}
+    .batch-bar .actions button{font-size:11px;padding:4px 7px}
+  }
+
+  /* script review layout */
+  .scr-layout{display:grid;grid-template-columns:260px 1fr 260px;gap:14px;min-height:60vh}
+  .scr-list{overflow-y:auto;max-height:70vh;padding:0}
+  .scr-list-item{padding:10px 14px;border-bottom:1px solid var(--glass-border);cursor:pointer;transition:background .15s}
+  .scr-list-item:hover,.scr-list-item.active{background:var(--glass-highlight)}
+  .scr-list-item.active{border-left:3px solid var(--cobalt)}
+  .scr-seg{border:1px solid var(--glass-border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px}
+  .scr-seg.editing{border-color:var(--cobalt);box-shadow:0 0 12px var(--cobalt-glow)}
+  .scr-seg .seg-header{display:flex;justify-content:space-between;padding:6px 12px;background:rgba(255,255,255,0.03);font-size:11px;color:var(--ink-dim);border-bottom:1px solid var(--glass-border)}
+
+  /* inline editing */
+  .inline-edit{display:flex;align-items:center;gap:6px;cursor:pointer;transition:all .15s;border-radius:6px;padding:2px 6px;margin:-2px -6px}
+  .inline-edit:hover{background:var(--glass-highlight)}
+  .inline-edit input{background:rgba(0,0,0,0.3);border:1px solid var(--cobalt);padding:4px 8px;font-size:inherit;color:inherit;border-radius:4px}
+  .inline-edit .save-btn{background:var(--cobalt);color:#fff;border:0;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px}
+  .inline-edit .cancel-btn{background:transparent;color:var(--ink-dim);border:1px solid var(--glass-border);border-radius:4px;padding:3px 8px;cursor:pointer;font-size:11px}
+
+  /* settings */
+  .settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .settings-card{padding:16px}
+  .settings-card h3{font-size:13px;margin:0 0 8px;display:flex;align-items:center;gap:6px}
+  .folder-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:var(--radius-sm);margin-bottom:6px;border:1px solid var(--glass-border)}
+  .folder-row .path{flex:1;font-size:12px;font-family:ui-monospace,monospace;color:var(--ink-dim)}
+
+  /* stats bar */
+  .stats-bar{display:flex;gap:14px;margin-bottom:10px;font-size:12px;flex-wrap:wrap;padding:10px 14px;background:var(--glass-card);border-radius:var(--radius-sm);border:1px solid var(--glass-border)}
+
+  /* detail panel in accordion */
+  .detail-panel{border-top:1px solid var(--glass-border);padding:16px 18px;background:rgba(0,0,0,0.15)}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:860px){.detail-grid,.settings-grid{grid-template-columns:1fr}.scr-layout{grid-template-columns:1fr}}
+
+  /* diagram thumbnails */
+  .diag-thumb{display:inline-block;width:140px;margin:5px;vertical-align:top;text-align:center;cursor:pointer;background:rgba(0,0,0,0.2);border-radius:var(--radius-sm);padding:6px;border:1px solid var(--glass-border);transition:all .15s}
+  .diag-thumb:hover{border-color:var(--cobalt);background:rgba(74,125,255,0.08)}
+  .diag-thumb img{width:100%;height:90px;object-fit:contain;border-radius:6px;background:rgba(0,0,0,0.3)}
+
+  /* diagram lightbox */
+  .diagram-lb{position:fixed;inset:0;background:rgba(0,0,0,0.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:200;display:none;align-items:center;justify-content:center}
+  .diagram-lb.show{display:flex}
+
+  /* queue */
+  .q-card{background:var(--glass-card);backdrop-filter:blur(16px) saturate(1.3);border:1px solid var(--glass-border);border-radius:var(--radius);margin-bottom:12px;overflow:hidden;transition:border-color .2s}
+  .q-card:hover{border-color:var(--glass-border-hover)}
+
+  .voice-option{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;font-size:12px;transition:background .15s}
+  .voice-option:hover{background:var(--glass-highlight)}
+  .voice-option.selected{background:rgba(74,125,255,0.12);border:1px solid var(--cobalt)}
+
+  .tpl-detail-inner .mini-frame{background:var(--glass-card);border:1px solid var(--glass-border);border-radius:var(--radius-sm)}
+  .tplcard .preview{background:var(--glass-card)}
+
+  /* mobile */
+  @media (max-width:760px){
+    header{flex-wrap:wrap;padding:10px 14px}
+    header .tag{display:none}
+    nav{margin-left:0;width:100%;overflow-x:auto;flex-wrap:nowrap}
+    nav button{flex:1 0 auto;min-width:70px;text-align:center;padding:7px}
+    main{padding:12px}
+    .taskbar{left:10px;right:10px;max-width:none;bottom:10px}
+    .taskbar-toggle{width:100%}
+    .facets{overflow-x:auto;flex-wrap:nowrap}
+    .tpl{grid-template-columns:1fr}
+    .imgwrap{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>CBSE Video Studio</h1>
+  <span class="tag">glass · v2</span>
+  <nav>
+    <button data-v="catalog" class="active">Catalogue</button>
+    <button data-v="studio">Studio</button>
+    <button data-v="scripts">Scripts</button>
+    <button data-v="templates">Templates</button>
+    <button data-v="queue">Queue</button>
+    <button data-v="settings">Settings</button>
+    <button data-v="tasks">Tasks</button>
+  </nav>
+</header>
+<main>
+  <!-- CATALOG -->
+  <section class="view active" id="catalog">
+    <h2>PDF Catalogue <span class="stat" id="catTotal"></span></h2>
+    <div class="row" style="margin-bottom:14px;flex-wrap:wrap;gap:6px">
+      <input id="catSearch" placeholder="search chapter title…" style="max-width:260px">
+      <button class="btn sm" onclick="loadCatalog()">Search</button>
+      <button class="btn ghost sm" onclick="rescanAndReset()">↻ Reset &amp; Re-scan</button>
+      <span style="flex:1"></span>
+    </div>
+    <div class="facets" id="catFacets"></div>
+    <div class="stats-bar" id="catStats"></div>
+    <div id="catCards"></div>
+  </section>
+
+  <!-- STUDIO -->
+  <section class="view" id="studio">
+    <div class="row" style="align-items:flex-end;margin-bottom:14px">
+      <div style="flex:1;max-width:320px"><label class="muted" style="font-size:12px">Open existing video</label>
+        <select id="videoSelect" onchange="openVideo(this.value)"><option value="">— new / select —</option></select></div>
+      <button class="btn sm" onclick="newVideoFlow()">+ New Video</button>
+    </div>
+    <div id="studioBody" class="muted" style="padding:20px">Select or create a video to begin.</div>
+  </section>
+
+  <!-- SCRIPTS -->
+  <section class="view" id="scripts">
+    <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h2 style="margin:0">Script Review <span class="stat" id="scrCount"></span></h2>
+      <div class="row" style="gap:6px;flex-wrap:nowrap">
+        <select id="scrPdfSelect" onchange="loadScripts(this.value)" style="width:auto;min-width:200px">
+          <option value="">Select a PDF...</option>
+        </select>
+        <button class="btn sm" onclick="aiParseScripts()">AI Parse</button>
+        <button class="btn sm ghost" onclick="aiParseWithVision()">Parse + Vision</button>
+        <span id="diagramCount" class="badge" style="display:none"></span>
+      </div>
+    </div>
+    <div id="scriptsBody" class="muted">Select a PDF and click AI Parse to generate scripts.</div>
+  </section>
+
+  <!-- TEMPLATES -->
+  <section class="view" id="templates">
+    <h2>Templates <span class="stat" id="tplCount"></span></h2>
+    <div class="tpl" id="tplGrid"></div>
+  </section>
+
+  <!-- QUEUE -->
+  <section class="view" id="queue">
+    <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:14px">
+      <h2 style="margin:0">Render Queue <span class="stat" id="queueCount"></span></h2>
+      <div class="row" style="gap:6px;flex-wrap:nowrap">
+        <select id="queueStatusFilter" onchange="loadQueue()" style="width:auto;min-width:140px">
+          <option value="">All</option>
+          <option value="queued">Queued</option>
+          <option value="claimed">Claimed</option>
+          <option value="rendering">Rendering</option>
+          <option value="preview_ready">Preview Ready</option>
+          <option value="preview_rejected">Rejected</option>
+          <option value="ready">Ready</option>
+          <option value="failed">Failed</option>
+        </select>
+        <button class="btn sm" onclick="loadQueue()">Refresh</button>
+      </div>
+    </div>
+    <div id="queueCards"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="settings">
+    <h2>Settings</h2>
+    <div class="settings-grid">
+      <div class="glass settings-card">
+        <h3><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></h3>
+        <p class="muted" style="font-size:12px;margin-bottom:12px">Add directories to watch for new PDF files. Background scanner checks every 60s.</p>
+        <div class="row" style="gap:6px;margin-bottom:10px">
+          <input id="watchPathInput" placeholder="/path/to/pdf/folder..." style="flex:1">
+          <button class="btn sm" onclick="addWatchFolder()">+ Add</button>
+        </div>
+        <div id="watchFolderList"><span class="muted" style="font-size:12px">No watch folders configured.</span></div>
+        <div class="row" style="margin-top:10px;gap:6px">
+          <button class="btn sm ghost" onclick="scanWatchFolders()">Scan Now</button>
+          <button class="btn sm ghost" onclick="loadSettings()">Refresh</button>
+        </div>
+      </div>
+      <div class="glass settings-card">
+        <h3>Identification</h3>
+        <p class="muted" style="font-size:12px;margin-bottom:10px">Manual override: set chapter name/number for a PDF.</p>
+        <div class="row" style="gap:6px;margin-bottom:8px">
+          <select id="overridePdfSelect" style="width:auto;min-width:160px" onchange="loadPdfOverride(this.value)">
+            <option value="">Select PDF...</option>
+          </select>
+        </div>
+        <div id="overridePanel"><span class="muted" style="font-size:12px">Select a PDF to override chapter info.</span></div>
+        <div class="row" style="margin-top:10px;gap:6px">
+          <button class="btn sm ghost" onclick="reanalyzeWithContext()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Identify (Destructive)</button>
+          <button class="btn sm ghost" onclick="comprehensiveAnalyzeSelected()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Full Page-by-Page</button>
+        </div>
+        <div id="comprehensiveStatus" class="muted" style="font-size:11px;margin-top:8px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TASKS -->
+  <section class="view" id="tasks">
+    <h2>Background Tasks</h2>
+    <div class="glass" id="taskList" style="padding:16px"><span class="muted">No active tasks.</span></div>
+  </section>
+</main>
+
+<div class="batch-bar" id="batchBar">
+  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;flex-shrink:0">
+    <input type="checkbox" id="selAll" onchange="this.checked?selectAll():deselectAll()">
+    <span class="count" id="batchCount">0 selected</span>
+  </label>
+  <span class="sep">|</span>
+  <div class="actions">
+    <button class="btn sm ghost" onclick="batchAction('identify')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Identify</button>
+    <button class="btn sm ghost" onclick="batchAction('diagrams')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Diagrams</button>
+    <button class="btn sm ghost" onclick="batchAction('label')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg> Label</button>
+    <button class="btn sm ghost" onclick="batchAction('parse')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Parse LLM</button>
+  </div>
+  <button class="btn sm ghost" style="color:var(--bad);flex-shrink:0" onclick="deselectAll()">✕ Clear</button>
+</div>
+
+<div class="taskbar" id="taskbar">
+  <div class="taskbar-toggle" id="taskbarToggle" onclick="toggleTaskBar()">
+    <span class="dot" id="taskbarDot"></span>
+    <span class="tb-summary" id="taskbarSummary">0 active</span>
+    <span class="tb-progress-text" id="taskbarProgressText"></span>
+    <div class="tb-progress-bar" id="taskbarProgressBar">
+      <div class="tb-progress-fill" id="taskbarProgressFill"></div>
+    </div>
+    <span class="tb-chevron"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+  </div>
+  <div class="taskbar-body hidden" id="taskbarBody">
+    <div class="taskbar-head">
+      <span>Active Tasks</span>
+      <span id="taskbarCount">0</span>
+    </div>
+    <div class="taskbar-list" id="taskbarList"><span class="stat" style="padding:14px;display:block">No active tasks.</span></div>
+  </div>
+</div>
+
+<!-- PDF Modal -->
+<div class="modal-overlay" id="pdfModal" onclick="closePdfModal(event)">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <header>
+      <h1 id="pdfModalTitle">PDF Preview</h1>
+      <button class="modal-close" onclick="closePdfModal()">&#10005;</button>
+    </header>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);min-height:60vh">
+      <embed id="pdfEmbed" type="application/pdf" style="width:100%;height:80vh;border:0" />
+    </div>
+  </div>
+</div>
+
+<!-- Diagram Lightbox -->
+<div class="diagram-lb" id="diagramLightbox" onclick="closeDiagramLightbox(event)">
+  <div style="position:relative;width:90%;height:90%;display:flex;align-items:center;justify-content:center" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeDiagramLightbox()" style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:16px">&#10005;</button>
+    <img id="diagramLightboxImg" style="max-width:100%;max-height:85%;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.5)" />
+    <div id="diagramLightboxLabel" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);color:#fff;padding:8px 18px;border-radius:8px;font-size:13px;max-width:80%;text-align:center;border:1px solid var(--glass-border)"></div>
+  </div>
+</div>
+
+<!-- Template Detail -->
+<div class="modal-overlay" id="tplDetail" onclick="closeTplDetail(event)">
+  <div class="glass settings-card" style="width:90%;max-width:800px;max-height:90vh;overflow-y:auto;padding:24px" onclick="event.stopPropagation()" id="tplDetailBody"></div>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+let STATE={catClass:null,catSubject:null,catQ:null,video:null,templates:[],taskItems:{}};
+
+function show(v){$$('.view').forEach(x=>x.classList.remove('active'));$('#'+v).classList.add('active');$$('nav button').forEach(b=>b.classList.toggle('active',b.dataset.v===v));if(v==='catalog')loadCatalog();if(v==='templates')loadTemplates();if(v==='tasks')loadTasks();if(v==='queue')loadQueue();if(v==='settings')loadSettings();}
+$$('nav button').forEach(b=>b.onclick=()=>show(b.dataset.v));
+
+async function api(u,m='GET',b){const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});if(!r.ok)throw new Error((await r.text()).slice(0,200));return r.json();}
+
+function icn(name,size='14'){
+  const s=`width="${size}" height="${size}"`
+  const M={
+    check:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+    clock:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    gear:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+    eye:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
+    pdf:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+    chevron:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>`,
+    spinner:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="spin"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>`,
+    edit:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`,
+    watch:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+    trash:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+    play:`<svg ${s} viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`,
+    close:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+    warn:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    refresh:`<svg ${s} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+  }
+  return M[name]||''
+}
+
+// ---- SETTINGS ----
+async function loadSettings(){
+  const s=await api('/api/settings');
+  renderWatchFolders(s.watch_folders||[]);
+  loadOverridePdfSelect();
+}
+function renderWatchFolders(folders){
+  const el=$('#watchFolderList');
+  if(!folders.length){el.innerHTML='<span class="muted" style="font-size:12px">No watch folders configured. Add one above.</span>';return;}
+  el.innerHTML=folders.map(f=>`
+    <div class="folder-row">
+      <span class="path">${f.path}</span>
+      <span class="pill">${f.recursive?'recursive':''}</span>
+      <span class="pill" style="${f.enabled?'border-color:var(--ok);color:var(--ok)':'border-color:var(--bad);color:var(--bad)'}">${f.enabled?'active':'paused'}</span>
+      <button class="btn sm ghost" onclick="removeWatchFolder(${f.id})" style="color:var(--bad)">${icn('trash','12')}</button>
+    </div>
+  `).join('');
+}
+async function addWatchFolder(){
+  const path=$('#watchPathInput').value.trim();
+  if(!path)return;
+  try{
+    await api('/api/settings/watch-folder','POST',{path,recursive:true});
+    $('#watchPathInput').value='';
+    loadSettings();
+  }catch(e){alert('Failed: '+e.message);}
+}
+async function removeWatchFolder(id){
+  if(!confirm('Remove this watch folder?'))return;
+  await api('/api/settings/watch-folder/'+id,'DELETE');
+  loadSettings();
+}
+async function scanWatchFolders(){
+  const r=await api('/api/settings/scan-now','POST');
+  loadCatalog();
+  loadSettings();
+}
+
+// ---- IDENTIFICATION OVERRIDE ----
+async function loadOverridePdfSelect(){
+  const cat=await api('/api/catalog?limit=500');
+  const sel=$('#overridePdfSelect');
+  sel.innerHTML='<option value="">Select PDF...</option>'+cat.items
+    .filter(p=>!p.processing?.identified||confirm('Show all?'))
+    .map(p=>`<option value="${p.id}">${p.class||''} ${p.chapter_name||p.title||'Untitled'}</option>`).join('');
+}
+async function loadPdfOverride(pid){
+  if(!pid){$('#overridePanel').innerHTML='<span class="muted" style="font-size:12px">Select a PDF to override chapter info.</span>';return;}
+  const pdf=await api('/api/pdfs/'+pid);
+  $('#overridePanel').innerHTML=`
+    <div style="margin-bottom:8px;font-size:13px">${pdf.title||'Untitled'}</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div><label class="muted" style="font-size:11px">Chapter Name</label>
+        <input id="overrideChName" value="${(pdf.chapter_name||'').replace(/"/g,'&quot;')}">
+      </div>
+      <div><label class="muted" style="font-size:11px">Chapter Number</label>
+        <input id="overrideChNum" type="number" value="${pdf.chapter_number||''}" style="width:100px">
+      </div>
+      <div><label class="muted" style="font-size:11px">Subject</label>
+        <input id="overrideSubject" value="${(pdf.subject||'').replace(/"/g,'&quot;')}">
+      </div>
+      <div class="row" style="gap:6px;margin-top:4px">
+        <button class="btn sm ok" onclick="savePdfOverride(${pid})">${icn('check','12')} Save</button>
+        <button class="btn sm ghost" onclick="reanalyzeSingle(${pid})">${icn('refresh','12')} Re-analyze with Vision</button>
+      </div>
+    </div>`;
+}
+async function savePdfOverride(pid){
+  const body={
+    chapter_name:$('#overrideChName').value.trim(),
+    chapter_number:parseInt($('#overrideChNum').value)||null,
+    subject:$('#overrideSubject').value.trim()||null,
+    identified_method:'manual',
+  };
+  await api('/api/pdfs/'+pid,'PATCH',body);
+  loadCatalog();
+}
+async function reanalyzeSingle(pid){
+  const btn=event?.target;if(btn){btn.textContent='Identifying...';btn.disabled=true;}
+  try{
+    const r=await api('/api/pdfs/'+pid+'/identify','POST');
+    loadPdfOverride(pid);
+    loadCatalog();
+  }catch(e){alert('Analysis failed: '+e.message);}
+  if(btn){btn.textContent='Identify';btn.disabled=false;}
+}
+async function reanalyzeWithContext(){
+  const pid=parseInt($('#overridePdfSelect').value);
+  if(!pid)return alert('Select a PDF first');
+  await reanalyzeSingle(pid);
+}
+async function comprehensiveAnalyzeSelected(){
+  const pid=parseInt($('#overridePdfSelect').value);
+  if(!pid)return alert('Select a PDF first');
+  $('#comprehensiveStatus').textContent='Analysis started... check Tasks view for progress.';
+  triggerComprehensive(pid);
+}
+
+// ---- CATALOG ----
+let _openPid=null;
+const CAT_CACHE={};
+const IDENTIFY_RUNNING={};  // pid -> true while identifying
+const SELECTED = new Set();
+
+// ---- BATCH SELECTION ----
+function toggleSelect(pid){
+  if(SELECTED.has(pid)) SELECTED.delete(pid); else SELECTED.add(pid);
+  updateSelectionUI();
+}
+function selectAll(){
+  document.querySelectorAll('.cat-card').forEach(c=>{
+    const pid = parseInt(c.dataset.pid);
+    if(pid) SELECTED.add(pid);
+  });
+  updateSelectionUI();
+}
+function deselectAll(){
+  SELECTED.clear();
+  updateSelectionUI();
+}
+function updateSelectionUI(){
+  const count = SELECTED.size;
+  const bar = $('#batchBar');
+  if(!bar)return;
+  bar.classList.toggle('show', count > 0);
+  $('#batchCount').textContent = count + ' selected';
+  document.querySelectorAll('.cat-card').forEach(c=>{
+    const cb = c.querySelector('.sel-cb');
+    if(cb) cb.checked = SELECTED.has(parseInt(c.dataset.pid));
+  });
+  const allCb = $('#selAll');
+  if(allCb) allCb.checked = count > 0 && document.querySelectorAll('.cat-card').length === count;
+  allCb.indeterminate = count > 0 && document.querySelectorAll('.cat-card').length !== count;
+}
+function batchAction(action){
+  const ids = [...SELECTED];
+  if(!ids.length)return;
+  const endpoints = {
+    identify: '/api/pdfs/batch-identify',
+    parse: '/api/pdfs/batch-parse',
+    diagrams: '/api/pdfs/batch-extract-diagrams',
+    label: '/api/pdfs/batch-label-diagrams',
+  };
+  const labels = {
+    identify: 'Identifying',
+    parse: 'Parsing (LLM)',
+    diagrams: 'Extracting diagrams',
+    label: 'Labeling diagrams',
+  };
+  const ep = endpoints[action];
+  if(!ep)return;
+  api(ep, 'POST', {pdf_ids: ids}).then(r=>{
+    track(r.task_id, labels[action] + ' ' + ids.length + ' PDFs');
+    SELECTED.clear();
+    updateSelectionUI();
+    if(action==='identify') setTimeout(loadCatalog, 2000);
+  }).catch(e=>alert('Batch failed: '+e.message));
+}
+
+async function identifyPdf(pid, btn){
+  if(IDENTIFY_RUNNING[pid])return;
+  IDENTIFY_RUNNING[pid]=true;
+  const card=btn?.closest('.cat-card');
+  const statusRow=card?.querySelector('.cat-status-msg');
+  if(statusRow)statusRow.innerHTML=`<span class="pill" style="background:rgba(255,176,0,0.15);border-color:rgba(255,176,0,0.3);color:var(--amber)">${icn('spinner','10')} Identifying...</span>`;
+  if(btn){btn.innerHTML=icn('spinner','12')+' Identifying...';btn.disabled=true;}
+  try{
+    const r=await api('/api/pdfs/'+pid+'/identify','POST');
+    if(r.task_id)track(r.task_id,'Identify PDF #'+pid);
+    // Poll for task completion
+    for(let i=0;i<60;i++){
+      await new Promise(r=>setTimeout(r,3000));
+      if(r.task_id){
+        const st=await api('/api/tasks/'+r.task_id);
+        if(st.status==='done'||st.status==='error')break;
+      }else{break;}
+    }
+    delete CAT_CACHE[pid];
+    if(_openPid===pid){_openPid=null;toggleCatDetail(pid);}
+    loadCatalog();
+  }catch(e){
+    const msg=card?.querySelector('.cat-status-msg');
+    if(msg)msg.innerHTML=`<span class="pill" style="background:rgba(255,93,108,0.15);border-color:rgba(255,93,108,0.3);color:var(--bad)">${icn('close','10')} Failed: ${e.message}</span>`;
+  }
+  delete IDENTIFY_RUNNING[pid];
+}
+
+async function loadCatalog(){
+  STATE.catQ=$('#catSearch').value;
+  const p=new URLSearchParams();
+  if(STATE.catClass)p.set('class_filter',STATE.catClass);
+  if(STATE.catSubject)p.set('subject',STATE.catSubject);
+  if(STATE.catQ)p.set('q',STATE.catQ);
+  const d=await api('/api/catalog?'+p.toString());
+  $('#catTotal').textContent='· '+d.total+' PDFs';
+
+  const f=$('#catFacets');f.innerHTML='';
+  const all=document.createElement('span');all.className='facet'+(!STATE.catClass&&!STATE.catSubject?' on':'');all.textContent='All';all.onclick=()=>{STATE.catClass=STATE.catSubject=null;loadCatalog();};f.appendChild(all);
+  d.facets.classes.forEach(c=>{const e=document.createElement('span');e.className='facet'+(STATE.catClass===c.class?' on':'');e.textContent=`Class ${c.class} (${c.c})`;e.onclick=()=>{STATE.catClass=c.class;STATE.catSubject=null;loadCatalog();};f.appendChild(e);});
+  d.facets.subjects.slice(0,10).forEach(c=>{const e=document.createElement('span');e.className='facet'+(STATE.catSubject===c.subject?' on':'');e.textContent=`${c.subject} (${c.c})`;e.onclick=()=>{STATE.catSubject=c.subject;STATE.catClass=null;loadCatalog();};f.appendChild(e);});
+
+  const id=d.items.filter(p=>p.processing?.identified).length;
+  const diag=d.items.filter(p=>p.processing?.has_diagrams).length;
+  const vid=d.items.filter(p=>p.processing?.has_videos).length;
+  const t=d.items.length;
+  $('#catStats').innerHTML=`
+    <span>${icn('check','12')} Identified: <strong>${id}</strong>/${t}</span>
+    <span>${icn('eye','12')} Diagrams: <strong>${diag}</strong>/${t}</span>
+    <span>${icn('play','12')} Videos: <strong>${vid}</strong>/${t}</span>
+    <span style="color:var(--ink-muted)">·</span>
+    <span>${t-id} pending</span>
+  `;
+
+  const cards=$('#catCards');cards.innerHTML='';
+
+  // Group by class → subject for hierarchy display
+  const groups={};
+  for(const p of d.items){
+    const cls=p.class||'Unclassified';
+    const sub=p.subject||'Other';
+    if(!groups[cls])groups[cls]={};
+    if(!groups[cls][sub])groups[cls][sub]=[];
+    groups[cls][sub].push(p);
+  }
+
+  const sortedClasses=Object.keys(groups).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+
+  for(const cls of sortedClasses){
+    const subjects=groups[cls];
+    const sortedSubjects=Object.keys(subjects).sort();
+
+    for(const sub of sortedSubjects){
+      const items=subjects[sub];
+
+      // Hierarchy header
+      const header=document.createElement('div');
+      header.style.cssText='display:flex;align-items:center;gap:8px;margin:18px 0 8px;padding:0 4px';
+      header.innerHTML=`
+        <span style="font-size:13px;font-weight:600;color:var(--ink)">Class ${cls}</span>
+        <span style="color:var(--ink-muted)">·</span>
+        <span style="font-size:13px;font-weight:500;color:var(--cobalt)">${sub}</span>
+        <span class="stat" style="font-size:11px">${items.length} PDFs</span>
+      `;
+      cards.appendChild(header);
+
+      for(const p of items){
+        const card=document.createElement('div');
+        card.className='cat-card';
+        card.dataset.pid = p.id;
+        card.id='catCard-'+p.id;
+        const displayName=p.chapter_name||p.title||'Untitled';
+        const proc=p.processing||{};
+        const identified=proc.identified;
+        const statusBadges=[
+          identified
+            ?`<span class="pill" style="background:rgba(67,209,122,0.15);border-color:rgba(67,209,122,0.3);color:var(--ok)">${icn('check','10')} Identified</span>`
+            :`<span class="pill" style="color:var(--ink-muted)">${icn('clock','10')} Unidentified</span>`,
+          proc.has_diagrams
+            ?`<span class="pill" style="background:rgba(74,125,255,0.12);border-color:rgba(74,125,255,0.25);color:var(--cobalt)">${icn('eye','10')} Diagrams</span>`
+            :`<span class="pill" style="color:var(--ink-muted)">${icn('clock','10')} No Diagrams</span>`,
+          proc.has_videos
+            ?`<span class="pill" style="background:rgba(67,209,122,0.15);border-color:rgba(67,209,122,0.3);color:var(--ok)">${icn('check','10')} Video</span>`
+            :`<span class="pill" style="color:var(--ink-muted)">${icn('clock','10')} No Video</span>`,
+        ].join(' ');
+        const isIdentifying=IDENTIFY_RUNNING[p.id];
+        card.innerHTML=`
+          <div class="cat-header" onclick="toggleCatDetail(${p.id})">
+            <input type="checkbox" class="sel-cb" style="margin:0 8px 0 0;flex-shrink:0" onchange="event.stopPropagation();toggleSelect(${p.id})" ${SELECTED.has(p.id)?'checked':''}>
+            <strong style="flex:1;font-size:15px">${displayName}</strong>
+            <div style="display:flex;gap:4px;flex-wrap:wrap">${statusBadges}</div>
+            <span class="stat">${p.pages??'?'}p · ${p.diagram_count||0} diag</span>
+            <span style="color:var(--ink-muted);display:inline-flex;transition:transform .2s" id="catArrow-${p.id}">${icn('chevron','14')}</span>
+          </div>
+          <div class="detail-panel" id="catDetail-${p.id}" style="display:none">
+            <span class="stat">${icn('spinner','14')} Loading...</span>
+          </div>
+          <div style="padding:6px 18px 12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <div class="cat-status-msg" style="display:flex;gap:4px;flex-wrap:wrap;flex:1">
+              ${isIdentifying ? `<span class="pill" style="background:rgba(255,176,0,0.15);border-color:rgba(255,176,0,0.3);color:var(--amber)">${icn('spinner','10')} Identifying...</span>` : ''}
+              ${p.processing?.identified_method && p.processing.identified_method !== 'none' ? `<span class="pill" style="font-size:10px;color:var(--ink-muted)">via ${p.processing.identified_method}</span>` : ''}
+            </div>
+            <button class="btn sm" onclick="event.stopPropagation();startFromPdf(${p.id})">Use for video</button>
+            <button class="btn sm ghost" onclick="event.stopPropagation();inlineEditChapter(${p.id},'${displayName.replace(/'/g,"\\'")}',this)">${icn('edit','12')} Edit</button>
+            <button class="btn sm ghost" onclick="event.stopPropagation();identifyPdf(${p.id},this)" ${isIdentifying?'disabled':''}>${isIdentifying?icn('spinner','12')+' Identifying...':icn('refresh','12')+' Identify'}</button>
+            <button class="btn sm ghost" onclick="event.stopPropagation();openPdfModal(${p.id},'${displayName.replace(/'/g,"\\'")}')">${icn('pdf','12')} PDF</button>
+          </div>`;
+        cards.appendChild(card);
+      }
+    }
+  }
+}
+
+// INLINE EDIT for chapter name
+function inlineEditChapter(pid, currentName, btn){
+  const row=btn.closest('.cat-card');
+  const header=row.querySelector('.cat-header');
+  const nameEl=header.querySelector('strong');
+  const orig=nameEl.textContent;
+  const input=document.createElement('input');
+  input.value=currentName;
+  input.style.cssText='font-size:15px;font-weight:600;background:rgba(0,0,0,0.3);border:1px solid var(--cobalt);padding:4px 8px;border-radius:6px;color:inherit;flex:1';
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const save=()=>{
+    const val=input.value.trim();
+    if(val&&val!==orig){
+      api('/api/pdfs/'+pid,'PATCH',{chapter_name:val,identified_method:'manual'}).then(()=>{loadCatalog()}).catch(()=>{loadCatalog()});
+    }else{loadCatalog()}
+  };
+  input.addEventListener('blur',save);
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'){input.blur()}if(e.key==='Escape'){loadCatalog()}});
+}
+
+// diagram lightbox
+function openDiagramLightbox(url,label){
+  const modal=$('#diagramLightbox');
+  modal.classList.add('show');
+  $('#diagramLightboxImg').src=url;
+  $('#diagramLightboxLabel').textContent=label||'';
+}
+function closeDiagramLightbox(e){
+  if(e&&e.target!==e.currentTarget&&e.type!=='click')return;
+  $('#diagramLightbox').classList.remove('show');
+}
+
+// catalogue accordion
+async function toggleCatDetail(pid){
+  if(_openPid&&_openPid!==pid){
+    const prev=$('#catDetail-'+_openPid);
+    if(prev)prev.style.display='none';
+    const prevArrow=$('#catArrow-'+_openPid);
+    if(prevArrow)prevArrow.style.transform='rotate(0deg)';
+  }
+  const el=$('#catDetail-'+pid);
+  const arrow=$('#catArrow-'+pid);
+  if(!el)return;
+  const isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  arrow.style.transform=isOpen?'rotate(0deg)':'rotate(180deg)';
+  _openPid=isOpen?null:pid;
+  if(!isOpen&&!CAT_CACHE[pid]){
+    el.innerHTML=`<span class="stat">${icn('spinner','14')} Loading...</span>`;
+    CAT_CACHE[pid]=true;
+    try{
+      const d=await api('/api/pdfs/'+pid+'/details');
+      let diagHtml='<span class="stat">No diagrams extracted.</span>';
+      if(d.diagrams&&d.diagrams.length){
+        diagHtml=d.diagrams.map(di=>{
+          const imgUrl='/api/diagram-file/'+di.id;
+          const label=(di.description||'').replace(/['"]/g,'').split('.')[0].slice(0,80);
+          return `<div class="diag-thumb" onclick="openDiagramLightbox('${imgUrl}','${(di.description||'No label').replace(/'/g,"\\'")}')">
+            <img src="${imgUrl}" loading="lazy">
+            <div style="font-size:10px;color:var(--ink-dim);margin-top:4px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${label}</div>
+            <div class="stat" style="font-size:10px">p${di.page_number} · <span class="link" onclick="event.stopPropagation();inlineEditDiagram(${di.id},'${label.replace(/'/g,"\\'")}',this)">${icn('edit','10')}</span></div>
+          </div>`;
+        }).join('');
+      }
+      const isSTEM=/science|math|physics|chemistry|biology/i.test(d.pdf?.subject||'');
+      el.innerHTML=`
+        <div class="detail-grid">
+          <div>
+            <h3>Extracted Text ${isSTEM?'<span class="stat">· STEM mode</span>':''}</h3>
+            <div style="border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:10px;max-height:200px;overflow-y:auto;font-size:12px;line-height:1.6;background:rgba(0,0,0,0.2)">
+              <pre style="margin:0;white-space:pre-wrap;font:inherit;color:var(--ink);font-family:${isSTEM?'\"Cambria Math\", \"STIX Two Math\", serif':'inherit'}">${(d.text_preview||'No text extracted.').slice(0,2000)}</pre>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn sm ghost" onclick="event.stopPropagation();api('/api/pdfs/${pid}/extract-diagrams','POST').then(()=>{delete CAT_CACHE[${pid}];_openPid=null;toggleCatDetail(${pid});})">${icn('eye','12')} Diagrams</button>
+              <button class="btn sm ghost" onclick="event.stopPropagation();api('/api/pdfs/${pid}/parse','POST').then(r=>{delete CAT_CACHE[${pid}];_openPid=null;toggleCatDetail(${pid});loadCatalog()})">${icn('gear','12')} Parse</button>
+              ${isSTEM?`<button class="btn sm ghost" onclick="event.stopPropagation();api('/api/pdfs/${pid}/ocr-stem','POST',{pages:[0,1,2]}).then(r=>{})">OCR</button>`:''}
+              <button class="btn sm ghost" onclick="event.stopPropagation();triggerComprehensive(${pid})">${icn('eye','12')} Analyze All Pages</button>
+              <button class="btn sm ghost" onclick="event.stopPropagation();api('/api/pdfs/${pid}/analyze-diagrams','POST').then(r=>{delete CAT_CACHE[${pid}];_openPid=null;toggleCatDetail(${pid});})">${icn('eye','12')} Label Diagrams</button>
+            </div>
+          </div>
+          <div>
+            <h3>Diagrams <span class="stat">${d.diagram_count}</span></h3>
+            <div style="border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:8px;max-height:300px;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:start;gap:4px;background:rgba(0,0,0,0.2)">${diagHtml}</div>
+          </div>
+        </div>`;
+    }catch(e){delete CAT_CACHE[pid];el.innerHTML='<span class="stat error">Failed: '+e.message+'</span>';}
+  }
+}
+
+// inline edit diagram description
+async function inlineEditDiagram(did, currentLabel, el){
+  const container=el.closest('.diag-thumb');
+  const labelEl=container.querySelector('div[style*="font-size:10px"]');
+  const input=document.createElement('input');
+  input.value=currentLabel;
+  input.style.cssText='font-size:10px;width:100%;background:rgba(0,0,0,0.3);border:1px solid var(--cobalt);padding:2px 4px;border-radius:4px;color:inherit';
+  labelEl.replaceWith(input);
+  input.focus();
+  input.select();
+  const save=()=>{
+    const val=input.value.trim();
+    if(val&&val!==currentLabel){
+      api('/api/diagrams/'+did,'PATCH',{description:val}).catch(()=>{});
+    }
+    // Reload the detail
+    const pid=parseInt(container.closest('[id^="catDetail-"]')?.id?.replace('catDetail-','')||'0');
+    if(pid){delete CAT_CACHE[pid];_openPid=null;toggleCatDetail(pid);}
+  };
+  input.addEventListener('blur',save);
+  input.addEventListener('keydown',e=>{if(e.key==='Enter'){input.blur()}if(e.key==='Escape'){save()}});
+}
+
+// comprehensive analysis trigger
+const COMPREHENSIVE_RUNNING = {};
+async function triggerComprehensive(pid){
+  if(COMPREHENSIVE_RUNNING[pid]){alert('Analysis already running for this PDF');return;}
+  const btn = event?.target;
+  if(btn){btn.textContent='Analyzing...';btn.disabled=true;}
+  COMPREHENSIVE_RUNNING[pid]=true;
+  try{
+    const r = await api('/api/pdfs/'+pid+'/comprehensive-analyze','POST',{max_pages:20});
+    // Poll for completion
+    for(let i=0;i<60;i++){
+      await new Promise(r=>setTimeout(r,3000));
+      const st = await api('/api/tasks/'+r.task_id);
+      if(st.status==='done'||st.status==='error')break;
+    }
+    delete CAT_CACHE[pid];_openPid=null;
+    toggleCatDetail(pid);
+    loadCatalog();
+  }catch(e){alert('Failed: '+e.message);}
+  delete COMPREHENSIVE_RUNNING[pid];
+  if(btn){btn.textContent='Analyze All Pages';btn.disabled=false;}
+}
+
+async function rescanAndReset(){
+  if(!confirm('Reset ALL metadata (chapter names, diagrams, analysis) and re-scan from scratch? This will re-identify all PDFs in background.'))return;
+  const btn=event?.target;
+  if(btn){btn.textContent='Resetting...';btn.disabled=true;}
+  try{
+    const r=await api('/api/reset','POST');
+    if(r.task_id)track(r.task_id,'Reset + Identify All');
+    // Let user know what's happening
+    const stats=$('#catStats');
+    if(stats)stats.innerHTML=`<span class="warn">${icn('spinner','12')} Reset done. Identify-all running in background (${r.note})...</span>`;
+    setTimeout(()=>loadCatalog(),2000);
+  }catch(e){alert('Reset failed: '+e.message);}
+  if(btn){btn.textContent='Reset & Re-scan';btn.disabled=false;}
+}
+
+async function startFromPdf(pid){
+  const pdf=await api('/api/pdfs/'+pid);
+  STATE.video=null;
+  await renderStudioNew(pid,pdf,pdf.chapter_name||pdf.title);
+  show('studio');
+}
+
+// ---- studio ----
+async function refreshVideoSelect(){
+  const vs=await api('/api/videos');
+  const s=$('#videoSelect');s.innerHTML='<option value="">— new / select —</option>';
+  vs.forEach(v=>{const o=document.createElement('option');o.value=v.id;o.textContent=`${v.title} · ${v.template_id} · ${v.status}`;s.appendChild(o);});
+}
+async function openVideo(id){if(!id){STATE.video=null;$('#studioBody').innerHTML='<span class="muted">Select a video.</span>';return;}const v=await api('/api/videos/'+id);STATE.video=v;renderStudio(v);}
+
+function tmplPill(t){const c=t==='physics'?'#35e0d0':t==='maths'?'#e0457b':'#4a7dff';return `<span class="pill" style="border-color:${c}33;color:${c}">${t}</span>`;}
+
+async function renderStudioNew(pid,pdf,displayName){
+  STATE.pdfId=pid;
+  STATE.templates=await api('/api/templates');
+  const tpls=STATE.templates.map(t=>`<option value="${t.id}">${t.name} (${t.subject})</option>`).join('');
+  displayName=displayName||pdf.chapter_name||pdf.title||'Untitled';
+  $('#studioBody').innerHTML=`
+    <div class="glass" style="padding:18px">
+      <h2>New video from: ${displayName}</h2>
+      <div class="row">
+        <div style="flex:1"><label class="muted" style="font-size:12px">Title</label><input id="nvTitle" value="${displayName}"></div>
+        <div style="width:160px"><label class="muted" style="font-size:12px">Class</label><input id="nvClass" value="${pdf.class}"></div>
+        <div style="width:200px"><label class="muted" style="font-size:12px">Template</label><select id="nvTpl">${tpls}</select></div>
+      </div>
+      <div style="margin-top:12px">
+        <button class="btn" onclick="genFromPdf(${pid})">Generate scripts from PDF (AI)</button>
+        <span class="muted" id="nvMsg" style="margin-left:8px;font-size:12px">LLM will parse chapter into structured scripts</span>
+      </div>
+      <div id="nvScripts"></div>
+    </div>`;
+}
+
+async function genFromPdf(pid){
+  $('#nvMsg').textContent='Parsing chapter with AI... (30-60s)';
+  $('#nvScripts').innerHTML='<div style="padding:20px;text-align:center">'+icn('spinner','18')+'<br><span class="muted">Generating scripts...</span></div>';
+  try{
+    const d=await api('/api/pdfs/'+pid+'/parse','POST',{});
+    if(!d.scripts||!d.scripts.length){
+      $('#nvMsg').textContent='No scripts generated.';
+      $('#nvScripts').innerHTML='';
+      return;
+    }
+    $('#nvMsg').textContent=`${d.scripts.length} scripts from ${d.pages} pages via ${d.method}`;
+    renderParsedScripts($('#nvScripts'),d.scripts);
+  }catch(e){
+    $('#nvMsg').textContent='Failed: '+e.message;
+    $('#nvScripts').innerHTML='';
+  }
+}
+
+function renderParsedScripts(container,scripts){
+  let html='<h2 style="margin-top:14px">Parsed scripts <span class="stat">(select one for this video)</span></h2>';
+  html+='<div class="facets" id="scriptTabs">';
+  scripts.forEach((s,i)=>{
+    const wc=s.segments.reduce((a,seg)=>a+seg.text.split(' ').length,0);
+    html+=`<span class="facet ${i===0?'on':''}" data-si="${i}" onclick="showScriptTab(${i})">#${i+1} · ${s.title.slice(0,28)} (${wc}w)</span>`;
+  });
+  html+='</div><div id="scriptPanels">';
+  scripts.forEach((s,i)=>{
+    html+=`<div class="script-panel" data-si="${i}"${i===0?'':' style="display:none"'}>`;
+    html+=`<div class="glass-sm" style="padding:14px;margin-top:10px">`;
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">`;
+    html+=`<h3 style="margin:0">${s.title}</h3>`;
+    html+=`<button class="btn sm" onclick="useParsedScript(${i})">Use for video</button>`;
+    html+=`</div>`;
+    s.segments.forEach((seg,si)=>{
+      html+=`<div class="seg"><div class="idx">#${si+1}</div><textarea data-si="${si}" data-script="${i}">${seg.text}</textarea></div>`;
+    });
+    html+=`</div></div>`;
+  });
+  html+='</div>';
+  container.innerHTML=html;
+  useParsedScript(0);
+}
+
+function showScriptTab(idx){
+  document.querySelectorAll('#scriptTabs .facet').forEach(t=>t.classList.toggle('on',+t.dataset.si===idx));
+  document.querySelectorAll('#scriptPanels .script-panel').forEach(p=>p.style.display=(+p.dataset.si===idx?'':'none'));
+}
+
+function useParsedScript(idx){
+  const panels=document.querySelectorAll('#scriptPanels .script-panel');
+  if(!panels[idx])return;
+  const segs=[...panels[idx].querySelectorAll('textarea')].map((t,i)=>({index:i,text:t.value}));
+  STATE.draftSegs=segs;
+  const segArea=$('#nvSegs')||(()=>{const d=document.createElement('div');d.id='nvSegs';$('#nvScripts').after(d);return d;})();
+  let html='<h2 style="margin-top:14px">Script segments <span class="stat">(edit, then save)</span></h2>';
+  segs.forEach((s,i)=>{
+    html+=`<div class="seg"><div class="idx">#${i+1}</div><textarea data-i="${i}">${s.text}</textarea></div>`;
+  });
+  html+=`<button class="btn" onclick="saveNewVideo()" style="margin-top:8px">${icn('check','14')} Save Version & create video</button>`;
+  segArea.innerHTML=html;
+  showScriptTab(idx);
+}
+
+async function saveNewVideo(){
+  const segs=[...$$('#nvSegs textarea')].map(t=>({index:+t.dataset.i,text:t.value}));
+  const tpl=STATE.templates.find(t=>t.id===$('#nvTpl').value);
+  const v=await api('/api/videos','POST',{pdf_id:STATE.pdfId,title:$('#nvTitle').value,subject:tpl?.subject,klass:$('#nvClass').value,template_id:$('#nvTpl').value});
+  await api('/api/videos/'+v.id+'/save-version','POST',{segments:segs,note:'initial draft from PDF',author:'user'});
+  await refreshVideoSelect();
+  STATE.video=await api('/api/videos/'+v.id);
+  renderStudio(STATE.video);
+}
+
+async function renderStudio(v){
+  const imgs=v.images||[];
+  const vers=v.versions||[];
+  const fb=v.feedback||[];
+  $('#studioBody').innerHTML=`
+    <div class="row" style="align-items:center;margin-bottom:14px">
+      <h2 style="margin:0">${v.title}</h2> ${tmplPill(v.template_id)}
+      <span class="pill">${v.status}</span>
+      <span class="badge">${vers.length} versions</span>
+      <span class="badge">${imgs.length} images</span>
+      <span class="badge">${fb.filter(f=>f.status==='open').length} feedback</span>
+    </div>
+    <div class="grid" style="grid-template-columns:1fr 1fr;align-items:start">
+      <div class="glass" style="padding:16px">
+        <h3>Scripts <span class="stat">(approve → queue)</span></h3>
+        <div id="scriptActions" class="row" style="gap:6px;flex-wrap:wrap"></div>
+        <h3 style="margin-top:12px">Queue</h3>
+        <div id="queueInfo"></div>
+        <h3 style="margin-top:12px">Actions</h3>
+        <div class="row" style="margin-bottom:10px">
+          <button class="btn sm" onclick="generateImages(${v.id})">Generate images</button>
+          <button class="btn sm" onclick="buildVideo(${v.id})">Build + render</button>
+          <a class="btn sm ghost" href="/api/videos/${v.id}/final" target="_blank">View final</a>
+        </div>
+        <div id="imgArea"></div>
+      </div>
+      <div class="glass" style="padding:16px">
+        <h3>Versions</h3>
+        <div id="verList"></div>
+        <h3 style="margin-top:14px">Feedback</h3>
+        <textarea id="fbText" placeholder="Add feedback or rework request..."></textarea>
+        <div class="row" style="margin:8px 0">
+          <select id="fbKind" style="width:auto;min-width:100px"><option value="note">note</option><option value="rework">rework</option><option value="approve">approve</option><option value="reject">reject</option></select>
+          <button class="btn sm" onclick="addFb(${v.id})">Add</button>
+        </div>
+        <div id="fbList"></div>
+      </div>
+    </div>`;
+  renderImages(v.id,imgs);
+  renderVersions(vers);
+  renderFb(fb);
+  renderQueueInfo(v.id);
+  renderScriptActions(v);
+}
+
+function renderImages(vid,imgs){
+  const a=$('#imgArea');
+  if(!imgs.length){a.innerHTML='<span class="muted" style="font-size:12px">No images yet.</span>';return;}
+  a.innerHTML='<h3 style="margin-top:10px">Generated images</h3><div class="imgwrap"></div>';
+  const w=a.querySelector('.imgwrap');
+  imgs.forEach(im=>{
+    const c=document.createElement('div');c.className='imgcard';
+    const st=im.status==='approved'?'s-appro':im.status==='rejected'?'s-rej':'s-pend';
+    c.innerHTML=`<img src="/api/images/${im.id}/file"><div class="meta"><div class="status ${st}">${im.status}</div>
+      <div class="row" style="margin-top:6px"><button class="btn sm ghost" onclick="setImg(${im.id},'approved')">✓</button><button class="btn sm ghost" onclick="setImg(${im.id},'rejected')">✗</button></div></div>`;
+    w.appendChild(c);
+  });
+}
+
+function renderVersions(vers){
+  const a=$('#verList');
+  if(!vers.length){a.innerHTML='<span class="muted" style="font-size:12px">No versions.</span>';return;}
+  a.innerHTML=vers.map(v=>`<div class="seg"><div class="idx">v${v.version_no} · ${v.author} · ${v.note||''}</div><span class="stat">${JSON.parse(v.script_json).segments.length} segments</span></div>`).join('');
+}
+function renderFb(fb){
+  const a=$('#fbList');
+  if(!fb.length){a.innerHTML='<span class="muted" style="font-size:12px">No feedback.</span>';return;}
+  a.innerHTML=fb.map(f=>`<div class="seg"><div class="idx">${f.kind} · ${f.status} · ${f.author}</div>${f.text}</div>`).join('');
+}
+
+async function setImg(iid,st){await api('/api/images/'+iid+'/feedback','POST',{status:st});const v=await api('/api/videos/'+STATE.video.id);STATE.video=v;renderStudio(v);}
+async function addFb(vid){const t=$('#fbText').value;const k=$('#fbKind').value;if(!t.trim())return;await api('/api/videos/'+vid+'/feedback','POST',{text:t,kind:k,author:'user'});$('#fbText').value='';const v=await api('/api/videos/'+vid);STATE.video=v;renderStudio(v);}
+
+async function renderQueueInfo(vid){
+  const a=$('#queueInfo');
+  const items=await api('/api/queue?limit=5&video_id='+vid).catch(()=>[]);
+  if(!items||!items.length){a.innerHTML='<span class="muted" style="font-size:12px">No queue entries.</span>';return;}
+  a.innerHTML=items.map(q=>{
+    const st=q.status;
+    const badgeCls=st==='ready'?'ok':st==='failed'?'error':'warn';
+    let links='';
+    if(q.preview_url)links+=` <a href="${q.preview_url}" target="_blank" class="btn sm ghost">Preview</a>`;
+    if(q.final_url)links+=` <a href="${q.final_url}" target="_blank" class="btn sm ghost">Final</a>`;
+    return `<div class="seg"><div class="idx">v${q.version_no} · <span class="${badgeCls}">${st}</span>${links}</div>Agent: ${q.agent||'—'} · ${q.script_duration_cap||'?'}s</div>`;
+  }).join('');
+}
+
+async function renderScriptActions(v){
+  const a=$('#scriptActions');
+  const vers=v.versions||[];
+  if(!vers.length){a.innerHTML='<span class="muted" style="font-size:12px">No saved scripts.</span>';return;}
+  const latestV=vers[vers.length-1];
+  const vn=latestV.version_no;
+  const qi=await api('/api/queue?limit=3&video_id='+v.id).catch(()=>[]);
+  if(qi.some(q=>q.version_no===vn)){a.innerHTML=`<span class="pill">v${vn} queued/in progress</span>`;return;}
+  a.innerHTML=`
+    <span class="pill">v${vn} · ${JSON.parse(latestV.script_json).segments.length} segs</span>
+    <button class="btn sm ok" onclick="approveScripts(${v.id})">${icn('check','12')} Approve & queue</button>
+    <button class="btn sm ghost" onclick="rejectScripts(${v.id})">${icn('close','12')} Reject</button>`;
+}
+
+async function approveScripts(vid){
+  await api('/api/videos/'+vid+'/scripts/approve','POST',{duration_cap:60});
+  const v=await api('/api/videos/'+vid);
+  STATE.video=v;
+  renderStudio(v);
+}
+async function rejectScripts(vid){
+  const reason=prompt('Reason for rejection:');
+  if(!reason)return;
+  await api('/api/videos/'+vid+'/scripts/reject','POST',{reason,version_no:STATE.video?.versions?.length||1});
+  const v=await api('/api/videos/'+vid);
+  STATE.video=v;
+  renderStudio(v);
+}
+
+// ---- TASKS ----
+let _taskbarAutoOpen = false;
+function track(tid, label) {
+  STATE.taskItems[tid] = STATE.taskItems[tid] || { label, created: Date.now() };
+  pollTask(tid);
+  updateTaskBar();
+  _taskbarAutoOpen = true;
+}
+async function pollTask(tid) {
+  const t = await api('/api/tasks/' + tid);
+  if (STATE.taskItems[tid]) {
+    STATE.taskItems[tid].status = t.status;
+    STATE.taskItems[tid].message = t.message || '';
+    STATE.taskItems[tid].current = t.current || 0;
+    STATE.taskItems[tid].total = t.total || 0;
+  }
+  updateTaskBar();
+  if (t.status === 'running' || t.status === 'queued') {
+    setTimeout(() => pollTask(tid), 1500);
+  }
+}
+function updateTaskBar() {
+  const items = STATE.taskItems || {};
+  const list = Object.entries(items);
+  const active = list.filter(([, v]) => v.status === 'running' || v.status === 'queued');
+  const hasProgress = list.some(([, v]) => v.total > 0);
+
+  // Summary
+  if (active.length) {
+    const running = active.filter(([, v]) => v.status === 'running');
+    const msg = running.length > 0 ? running[0][1].message || '' : '';
+    $('#taskbarSummary').textContent = `${active.length} active`;
+    $('#taskbarProgressText').textContent = msg;
+  } else {
+    $('#taskbarSummary').textContent = '0 active';
+    $('#taskbarProgressText').textContent = '';
+  }
+
+  // Progress bar
+  const pbar = $('#taskbarProgressBar');
+  const pfill = $('#taskbarProgressFill');
+  if (hasProgress && active.length > 0) {
+    pbar.style.display = 'block';
+    const task = active.find(([, v]) => v.total > 0) || active[0];
+    const [cur, tot] = [task[1].current || 0, task[1].total || 1];
+    const pct = Math.min(100, Math.round((cur / tot) * 100));
+    pfill.style.width = pct + '%';
+    pfill.style.animation = 'none';
+  } else if (active.length > 0) {
+    pbar.style.display = 'block';
+    pfill.style.width = '100%';
+    pfill.style.animation = 'shimmer 1.5s infinite';
+  } else {
+    pbar.style.display = 'none';
+  }
+
+  // Dot
+  const dot = $('#taskbarDot');
+  dot.className = 'dot' + (active.length ? ' busy' : '');
+
+  // Count
+  $('#taskbarCount').textContent = list.length + ' tasks';
+
+  // List
+  const listEl = $('#taskbarList');
+  if (!list.length) {
+    listEl.innerHTML = '<span class="stat" style="padding:14px;display:block">No active tasks.</span>';
+    return;
+  }
+  listEl.innerHTML = list.sort((a, b) => b[1].created - a[1].created).map(([tid, v]) => {
+    const st = v.status || 'queued';
+    let icon;
+    if (st === 'done') icon = icn('check', '12');
+    else if (st === 'error') icon = icn('close', '12');
+    else if (st === 'running') icon = icn('spinner', '12');
+    else icon = icn('clock', '12');
+    const cls = st === 'done' ? 'tb-done' : st === 'error' ? 'tb-error' : st === 'running' ? 'tb-running' : 'tb-queued';
+    const msg = v.message ? `<span class="tb-msg">${v.message}</span>` : '';
+    const progress = v.total > 0 ? `<span class="tb-progress">${v.current}/${v.total}</span>` : '';
+    const age = Math.round((Date.now() - v.created) / 1000);
+    const ageStr = age < 60 ? `${age}s` : age < 3600 ? `${Math.floor(age / 60)}m` : `${Math.floor(age / 3600)}h`;
+    return `<div class="taskbar-item"><span class="tb-icon">${icon}</span><span class="tb-label">${v.label || tid}</span>${msg}${progress}<span class="tb-status ${cls}">${st}</span><span class="tb-age">${ageStr}</span></div>`;
+  }).join('');
+
+  // Auto-open
+  if (_taskbarAutoOpen && active.length > 0) {
+    _taskbarAutoOpen = false;
+    $('#taskbarBody').classList.remove('hidden');
+    _taskbarOpen = true;
+  }
+}
+let _taskbarOpen = false;
+function toggleTaskBar() {
+  _taskbarOpen = !_taskbarOpen;
+  $('#taskbarBody').classList.toggle('hidden', !_taskbarOpen);
+}
+
+async function generateImages(vid){const r=await api('/api/videos/'+vid+'/generate-images','POST',{});track(r.task_id,'Generate images');}
+async function buildVideo(vid){const r=await api('/api/videos/'+vid+'/build','POST',{});track(r.task_id,'Build + render');}
+
+// ---- PDF PREVIEW ----
+function openPdfModal(pid,title){
+  $('#pdfModalTitle').textContent=title||'PDF Preview';
+  $('#pdfEmbed').src='/api/pdfs/'+pid+'/file';
+  $('#pdfModal').classList.add('show');
+}
+function closePdfModal(e){
+  if(e&&e.target!==e.currentTarget)return;
+  $('#pdfModal').classList.remove('show');
+  $('#pdfEmbed').src='';
+}
+
+// ---- TEMPLATE DETAIL ----
+const FRAME_TYPES=[
+  {id:'cover',label:'Hero Cover',headline:'The Periodic Table',micro:'SCIENCE · CLASS 11'},
+  {id:'chapter',label:'Chapter Opener',headline:'Atomic Structure',micro:'CHAPTER 2'},
+  {id:'data',label:'Data Frame',headline:'Electron Configuration',micro:'2s² 2p⁶ · SHELL MODEL'},
+  {id:'quote',label:'Quote',headline:'"Matter is neither\ncreated nor destroyed"',micro:'LAVOISIER · 1789'},
+];
+function openTplDetail(t){
+  const p=t.palette,f=t.fonts;
+  $('#tplDetailBody').innerHTML=tplDetailInner(t,p,f);
+  $('#tplDetail').classList.add('show');
+  if(f.google){
+    const id='gf-'+t.id;
+    if(!document.getElementById(id)){
+      const l=document.createElement('link');l.id=id;l.rel='stylesheet';
+      l.href='https://fonts.googleapis.com/css2?'+f.google.replace(/ /g,'').replace(/&amp;/g,'&')+'&display=swap';
+      document.head.appendChild(l);
+    }
+  }
+}
+function closeTplDetail(e){
+  if(e&&e.target!==e.currentTarget)return;
+  $('#tplDetail').classList.remove('show');
+}
+function tplDetailInner(t,p,f){
+  return '<h2>'+t.name+'</h2><span class="pill">'+t.subject+'</span><p class="muted" style="font-size:12px">'+t.description+'</p>'+
+    '<div class="row" style="gap:8px;margin:12px 0">'+['paper','ink','accent'].map(k=>sw(p[k],k)).join(' ')+'</div>'+
+    '<div style="font-family:ui-monospace,monospace;font-size:12px;color:var(--ink-dim)">Display: '+f.display+' · Body: '+f.body+(f.mono?' · Mono: '+f.mono:'')+'</div>'+
+    '<div class="frame-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-top:14px">'+
+    FRAME_TYPES.map(ft=>miniFrame(ft,p,f)).join('')+'</div>';
+}
+function miniFrame(ft,p,f){
+  const gridC=f.id==='maths'?'rgba(58,31,77,0.08)':f.id==='physics'?'rgba(53,224,208,0.08)':'rgba(26,63,176,0.10)';
+  const displayFont=f.display||'serif';
+  return '<div class="mini-frame" style="aspect-ratio:16/9;border-radius:var(--radius-sm);overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;position:relative">'+
+    '<div class="grid-overlay" style="position:absolute;inset:0;pointer-events:none;background-image:linear-gradient('+gridC+' 1px,transparent 1px),linear-gradient(90deg,'+gridC+' 1px,transparent 1px);background-size:12px 12px"></div>'+
+    '<div class="micro" style="font-size:9px;text-transform:uppercase;letter-spacing:.16em;z-index:1;color:'+p.ink_soft+'">'+ft.micro+'</div>'+
+    '<div class="display" style="font-weight:400;text-align:center;z-index:1;font-family:\''+displayFont+'\',serif;font-size:clamp(14px,3.2cqw,28px);line-height:1.1;padding:4px 8px 0;white-space:pre-line">'+ft.headline+'</div></div>';
+}
+async function loadTemplates(){
+  const ts=await api('/api/templates');STATE.templates=ts;
+  const g=$('#tplGrid');g.innerHTML='';
+  ts.forEach(t=>{
+    const p=t.palette,f=t.fonts;
+    const previewRows=FRAME_TYPES.map((ft,i)=>{
+      const gridC=f.id==='maths'?'rgba(58,31,77,0.08)':f.id==='physics'?'rgba(53,224,208,0.08)':'rgba(26,63,176,0.10)';
+      return `<div class="mini-frame" style="aspect-ratio:16/9;margin-bottom:6px">
+        <div class="grid-overlay" style="position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(${gridC} 1px,transparent 1px),linear-gradient(90deg,${gridC} 1px,transparent 1px);background-size:10px 10px"></div>
+        <div class="micro" style="position:absolute;top:6px;left:8px;font-size:9px;text-transform:uppercase;letter-spacing:.16em;color:${p.ink_soft}">${ft.micro}</div>
+        <div class="display" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:${f.display||'serif'};font-size:clamp(10px,2.5cqw,18px);line-height:1.1;padding:0 8px;text-align:center;word-break:break-word">${ft.headline}</div>
+      </div>`;
+    }).join('');
+    const c=document.createElement('div');c.className='tplcard';
+    c.innerHTML=`<div class="preview" style="position:relative;padding:14px">${previewRows}</div>
+      <div style="padding:14px"><div class="stat">${t.subject}</div><p style="font-size:12px;margin:4px 0;color:var(--ink-dim)">${t.description}</p>
+      <div class="row" style="gap:6px;margin-top:8px">${sw(p.ink)} ${sw(p.paper)} ${sw(p.accent)} ${sw(p.grid)}</div>
+      <div class="stat" style="margin-top:6px;font-family:ui-monospace,monospace;font-size:11px">Display: ${f.display} / Body: ${f.body}</div></div>`;
+    c.onclick=()=>openTplDetail(t);g.appendChild(c);
+  });
+}
+function sw(hex,title){return `<span style="width:22px;height:22px;border-radius:5px;background:${hex};border:1px solid var(--glass-border);display:inline-block" title="${title||hex}"></span>`;}
+
+async function newVideoFlow(){await refreshVideoSelect();$('#videoSelect').value='';$('#studioBody').innerHTML='<span class="muted">Use a PDF from the Catalogue first, or pick a template below.</span><div id="tplQuick" class="row" style="margin-top:12px"></div>';if(!STATE.templates.length)STATE.templates=await api('/api/templates');}
+
+// ---- SCRIPTS REVIEW ----
+STATE.scr={scripts:[],activeIdx:0,pdfId:0,voices:[]};
+
+async function loadScriptsPdfSelect(){
+  const cat=await api('/api/catalog?limit=500');
+  const sel=$('#scrPdfSelect');
+  sel.innerHTML='<option value="">Select a PDF...</option>'+cat.items.map(p=>`<option value="${p.id}">${p.class||''} ${p.title||'Untitled'}</option>`).join('');
+}
+async function aiParseScripts(){
+  const pid=parseInt($('#scrPdfSelect').value);
+  if(!pid)return alert('Select a PDF first');
+  const body=$('#scriptsBody');
+  body.innerHTML='<div class="muted" style="padding:40px;text-align:center">'+icn('spinner','18')+'<br>AI parsing chapter...</div>';
+  try{
+    const r=await api('/api/pdfs/'+pid+'/parse','POST',{});
+    if(!r.scripts||!r.scripts.length){body.innerHTML='<div class="muted" style="padding:20px">No scripts generated.</div>';return;}
+    STATE.scr.scripts=r.scripts;STATE.scr.pdfId=pid;STATE.scr.activeIdx=0;
+    renderScriptsReview();
+  }catch(e){body.innerHTML='<div class="error" style="padding:20px">Error: '+e.message+'</div>';}
+}
+async function aiParseWithVision(){
+  const pid=parseInt($('#scrPdfSelect').value);
+  if(!pid)return alert('Select a PDF first');
+  const body=$('#scriptsBody');
+  body.innerHTML='<div class="muted" style="padding:40px;text-align:center">'+icn('spinner','18')+'<br>AI parsing with Gemma vision...</div>';
+  try{
+    const diagR=await api('/api/pdfs/'+pid+'/extract-diagrams','POST',{});
+    $('#diagramCount').textContent=diagR.diagrams.length+' diagrams';
+    $('#diagramCount').style.display='inline';
+    STATE.scr.diagrams=diagR.diagrams;
+    const r=await api('/api/pdfs/'+pid+'/parse-with-vision','POST',{});
+    if(!r.scripts||!r.scripts.length){body.innerHTML='<div class="muted" style="padding:20px">No scripts generated.</div>';return;}
+    STATE.scr.scripts=r.scripts;STATE.scr.pdfId=pid;STATE.scr.activeIdx=0;STATE.scr.diagramContext=r.diagram_context;
+    renderScriptsReview();
+    const dDiv=document.createElement('div');dDiv.id='diagramPanel';
+    dDiv.innerHTML='<hr style="border-color:var(--glass-border);margin:14px 0"><h3>Textbook Diagrams</h3>'+renderDiagrams(diagR.diagrams);
+    body.appendChild(dDiv);
+  }catch(e){body.innerHTML='<div class="error" style="padding:20px">Error: '+e.message+'</div>';}
+}
+function renderDiagrams(diags){
+  if(!diags||!diags.length)return '<span class="muted">No diagrams found.</span>';
+  return diags.map((d,i)=>{
+    const page=d.page_number+1;
+    const desc=(d.description||'').slice(0,200);
+    const imgPath=d.image_path;
+    const imgUrl=imgPath?'/api/files/'+encodeURIComponent(imgPath):'';
+    return `<div class="seg" style="margin:6px 0">
+      <div class="idx">Page ${page} · ${d.width}×${d.height}</div>
+      ${imgUrl?`<img src="${imgUrl}" style="max-width:200px;max-height:150px;border-radius:6px;float:right;margin-left:8px">`:''}
+      <div class="muted">${desc||'No description'}</div>
+    </div>`;
+  }).join('');
+}
+async function loadScripts(pid){
+  if(!pid){$('#scriptsBody').innerHTML='<div class="muted" style="padding:20px">Select a PDF.</div>';return;}
+  STATE.scr.pdfId=parseInt(pid);
+  aiParseScripts();
+}
+function renderScriptsReview(){
+  const scripts=STATE.scr.scripts;
+  const ai=STATE.scr.activeIdx;
+  const body=$('#scriptsBody');
+  $('#scrCount').textContent='· '+scripts.length+' scripts';
+
+  const listHtml=scripts.map((s,i)=>`
+    <div class="scr-list-item ${i===ai?'active':''}" onclick="selectScript(${i})">
+      <div class="scr-title">${s.title||'Script '+(i+1)}</div>
+      <div class="scr-meta"><span>${s.segments?.length||0} segs</span><span class="pill">#${i+1}</span></div>
+    </div>`).join('');
+
+  const active=scripts[ai];
+  const segsHtml=active.segments.map((seg,si)=>`
+    <div class="scr-seg" id="seg-${si}">
+      <div class="seg-header">
+        <span>Segment ${si+1}</span>
+        <span>
+          <button class="btn sm ghost" onclick="generateSegImage(${si})">Gen Image</button>
+          <button class="btn sm ghost ${seg.imgStatus==='approved'?'ok':''}" onclick="acceptSegImage(${si})">✓ Accept</button>
+          <button class="btn sm ghost ${seg.imgStatus==='rejected'?'error':''}" onclick="rejectSegImage(${si})">✗ Reject</button>
+          <button class="btn sm ghost" onclick="regenSegImage(${si})">↻ Regen</button>
+        </span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+        <div style="padding:10px;border-right:1px solid var(--glass-border)">
+          <textarea onchange="updateSegText(${si},this.value)" style="min-height:50px;font-size:12px;border:0;background:transparent;padding:0;resize:vertical">${seg.text||''}</textarea>
+        </div>
+        <div style="padding:10px">
+          <textarea onchange="updateSegPrompt(${si},this.value)" placeholder="No image prompt..." style="min-height:50px;font-size:12px;border:0;background:transparent;padding:0;resize:vertical;color:var(--ink-dim)">${seg.image_prompt||''}</textarea>
+          ${seg.generated_image_url?`<img src="${seg.generated_image_url}" style="max-width:120px;border-radius:6px;margin-top:8px;border:1px solid var(--glass-border)" />`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;padding:6px 10px;background:rgba(255,255,255,0.02);border-top:1px solid var(--glass-border);align-items:center">
+        <span class="muted" style="font-size:11px">${seg.imgStatus||'pending'}</span>
+        <input type="text" placeholder="Feedback..." style="flex:1;font-size:11px;padding:4px 8px" id="fb-${si}" />
+        <button class="btn sm ghost" onclick="regenerateWithFeedback(${si})">Send</button>
+      </div>
+    </div>`).join('');
+
+  const voicesHtml=STATE.scr.voices.length?STATE.scr.voices.map(v=>`
+    <div class="voice-option ${v.selected?'selected':''}" onclick="selectVoice('${v.id}')">
+      <span style="flex:1">${v.name||v.id} <span class="stat">· ${v.source}</span></span>
+      <button class="preview-btn" onclick="event.stopPropagation();previewVoice('${v.id}','${v.preview_url||''}')">${icn('play','12')}</button>
+    </div>`):'<span class="muted">Loading voices...</span>';
+
+  body.innerHTML=`
+    <div class="scr-layout">
+      <div class="glass-sm scr-list">${listHtml}</div>
+      <div>
+        <div style="margin-bottom:10px">
+          <strong>${active.title||'Script '+(ai+1)}</strong>
+          <span class="badge" style="margin-left:8px">${ai+1}/${scripts.length}</span>
+        </div>
+        <div class="scr-segments">${segsHtml}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="glass-sm" style="padding:12px">
+          <label class="stat" style="font-size:11px">Voice Over</label>
+          <div id="voiceList">${voicesHtml}</div>
+        </div>
+        <div class="glass-sm" style="padding:12px">
+          <label class="stat" style="font-size:11px">Actions</label>
+          <button class="btn sm" onclick="generateAllImages()" style="width:100%;margin-bottom:6px">Generate All Images</button>
+          <button class="btn sm" onclick="generateVideoForScript(${ai})" style="width:100%;margin-bottom:6px">Render Script Video</button>
+          <button class="btn sm ghost" onclick="generateAllVideos()" style="width:100%">Batch Render All</button>
+        </div>
+      </div>
+    </div>`;
+  if(!STATE.scr.voices.length)loadVoices();
+}
+function selectScript(idx){STATE.scr.activeIdx=idx;renderScriptsReview();}
+function updateSegText(si,val){STATE.scr.scripts[STATE.scr.activeIdx].segments[si].text=val;}
+function updateSegPrompt(si,val){STATE.scr.scripts[STATE.scr.activeIdx].segments[si].image_prompt=val;}
+async function generateSegImage(si){
+  const seg=STATE.scr.scripts[STATE.scr.activeIdx].segments[si];
+  if(!seg.image_prompt){alert('No image prompt');return;}
+  try{const r=await api('/api/images/generate','POST',{prompt:seg.image_prompt});seg.generated_image_url=r.url||r.path;seg.imgStatus='generated';renderScriptsReview();}catch(e){alert('Failed: '+e.message);}
+}
+function acceptSegImage(si){STATE.scr.scripts[STATE.scr.activeIdx].segments[si].imgStatus='approved';renderScriptsReview();}
+function rejectSegImage(si){STATE.scr.scripts[STATE.scr.activeIdx].segments[si].imgStatus='rejected';renderScriptsReview();}
+function regenSegImage(si){STATE.scr.scripts[STATE.scr.activeIdx].segments[si].imgStatus='pending';generateSegImage(si);}
+async function regenerateWithFeedback(si){
+  const fb=$('#fb-'+si).value;
+  if(!fb.trim()){generateSegImage(si);return;}
+  const seg=STATE.scr.scripts[STATE.scr.activeIdx].segments[si];
+  try{const r=await api('/api/images/generate','POST',{prompt:seg.image_prompt+' '+fb});seg.generated_image_url=r.url||r.path;seg.imgStatus='generated';$('#fb-'+si).value='';renderScriptsReview();}catch(e){alert('Failed: '+e.message);}
+}
+async function generateAllImages(){
+  const segs=STATE.scr.scripts[STATE.scr.activeIdx].segments;
+  for(let i=0;i<segs.length;i++){if(segs[i].image_prompt&&!segs[i].imgStatus)await generateSegImage(i);}
+}
+
+// ---- QUEUE ----
+const QUEUE={reports:{}};
+async function loadQueue(){
+  const f=$('#queueStatusFilter').value;
+  const d=await api('/api/queue'+(f?`?status=${f}`:''));
+  $('#queueCount').textContent='· '+d.length+' items';
+  const cards=$('#queueCards');cards.innerHTML='';
+  for(const q of d){
+    const meta=JSON.parse(q.metadata||'{}');
+    const sc={'queued':'var(--ink-muted)','claimed':'var(--amber)','rendering':'var(--cobalt)','preview_ready':'var(--ok)','preview_rejected':'var(--bad)','ready':'var(--ok)','failed':'var(--bad)'}[q.status]||'var(--ink-muted)';
+    const card=document.createElement('div');card.className='q-card';
+    card.innerHTML=`
+      <div style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:14px 18px" onclick="toggleQueueReport(${q.id})">
+        <span style="background:${sc};width:10px;height:10px;border-radius:50%;flex-shrink:0"></span>
+        <strong style="flex:1">#${q.id} ${q.title||q.slug}</strong>
+        <span class="pill" style="border-color:${sc};color:${sc}">${q.status.replace(/_/g,' ')}</span>
+        <span class="stat">${q.subject||''} ${q.class||''}</span>
+        <span class="stat">${meta.diagram_count||0} diagrams</span>
+        <span style="color:var(--ink-muted);display:inline-flex">${icn('chevron','14')}</span>
+      </div>
+      <div style="padding:0 18px 12px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn sm" onclick="openPreview(${q.id},'${q.slug}')" title="Open composition">${icn('play','12')} Comp</button>
+        <button class="btn sm ghost" id="mp4Btn-${q.id}" onclick="openMp4(${q.id},'${q.slug}')">${icn('play','12')} MP4</button>
+        <button class="btn sm ghost" id="renderBtn-${q.id}" onclick="renderQueueItem(${q.id},'${q.slug}')" style="display:none">Render MP4</button>
+        <button class="btn sm ghost" onclick="runLint(${q.id})">${icn('gear','12')} Lint</button>
+        ${q.status==='preview_ready'?`
+          <button class="btn sm ok" onclick="showReviewModal(${q.id},'approve')">${icn('check','12')} Approve</button>
+          <button class="btn sm ghost" style="border-color:var(--bad);color:var(--bad)" onclick="showReviewModal(${q.id},'reject')">${icn('close','12')} Reject</button>`:''}
+        ${q.status==='preview_rejected'?`<button class="btn sm" onclick="showReviewModal(${q.id},'approve')">${icn('check','12')} Approve Anyway</button>`:''}
+      </div>
+      <div class="q-report" id="qReport-${q.id}" style="display:none;padding:0 18px 14px;border-top:1px solid var(--glass-border);padding-top:12px"></div>`;
+    cards.appendChild(card);
+    fetch('/rendered/'+q.slug+'/final.mp4',{method:'HEAD'}).then(r=>{if(!r.ok||r.status>=400){const b=document.getElementById('renderBtn-'+q.id);if(b)b.style.display='inline-block';}}).catch(()=>{const b=document.getElementById('renderBtn-'+q.id);if(b)b.style.display='inline-block';});
+  }
+}
+async function openPreview(qid,slug){
+  const btn=event?.target;
+  if(btn){btn.textContent='Loading...';btn.disabled=true;}
+  try{await api('/api/preview/switch','POST',{slug});window.open('/preview/','hf-preview-'+slug,'width=1400,height=900');}catch(e){window.open('/rendered/'+slug+'/index.html','_blank');}
+  if(btn){btn.textContent='Comp';btn.disabled=false;}
+}
+function openMp4(qid,slug){window.open('/rendered/'+slug+'/final.mp4','_blank');}
+async function toggleQueueReport(qid){
+  const el=$('#qReport-'+qid);if(!el)return;
+  const isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  if(!isOpen&&!QUEUE.reports[qid]){
+    QUEUE.reports[qid]=true;
+    el.innerHTML='<span class="stat">Loading...</span>';
+    try{const r=await api('/api/queue/'+qid+'/review');renderQueueReport(qid,r);}catch(e){el.innerHTML='<span class="stat error">Failed: '+e.message+'</span>';}
+  }
+}
+function renderQueueReport(qid,r){
+  const el=$('#qReport-'+qid);if(!el)return;
+  el.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px">
+      <div>
+        <h3 style="font-size:13px;margin:0 0 6px">Script <span class="stat">${r.segment_count} segs, ${r.duration_s||'?'}s</span></h3>
+        <div style="max-height:200px;overflow-y:auto;border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:6px 10px;background:rgba(0,0,0,0.15)">
+          ${r.segments.map(s=>`<div style="padding:6px 0;border-bottom:1px solid var(--glass-border);font-size:12px"><span class="badge">#${s.index}</span><span>${s.text}</span><span class="stat" style="float:right">${s.duration}s</span></div>`).join('')}
+        </div>
+      </div>
+      <div>
+        <h3 style="font-size:13px;margin:0 0 6px">Diagrams <span class="stat">${r.diagrams?.total||0} total</span></h3>
+        <div style="border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:8px 10px;max-height:140px;overflow-y:auto;background:rgba(0,0,0,0.15)">
+          ${(r.diagrams?.report?.missed||[]).length?r.diagrams.report.missed.map(d=>`<div style="padding:4px 0;font-size:11px;color:var(--ink-dim)">${icn('warn','12')} Page ${d.page}: ${(d.description||'').slice(0,100)}</div>`).join(''):'<span class="stat">All diagrams accounted for</span>'}
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;font-size:12px;border-top:1px solid var(--glass-border);padding-top:8px">
+      <span>Lint: ${r.lint?.errors||0} errors</span>
+      <span class="stat">${r.preview?.mp4_size_mb?r.preview.mp4_size_mb+'MB':''}</span>
+      <button class="btn sm ghost" onclick="openPreview(${qid},'${r.slug}')">${icn('play','12')} Open</button>
+      <button class="btn sm ghost" onclick="openMp4(${qid},'${r.slug}')">${icn('play','12')} MP4</button>
+    </div>`;
+}
+async function runLint(qid){
+  try{const r=await api('/api/queue/'+qid+'/lint');alert(`Lint: ${r.errors.length} errors, ${r.warnings.length} warnings`);}catch(e){alert('Failed: '+e.message);}
+}
+async function renderQueueItem(qid,slug){
+  if(!confirm('Render "'+slug+'" to MP4?'))return;
+  const btn=document.getElementById('renderBtn-'+qid);
+  if(btn){btn.textContent='Rendering...';btn.disabled=true;}
+  try{await api('/api/queue/'+qid+'/render','POST');alert('Render queued!');}catch(e){alert('Failed: '+e.message);}
+  if(btn){btn.textContent='Render MP4';btn.disabled=false;}
+}
+function showReviewModal(qid,action){
+  const el=document.createElement('div');el.className='modal-overlay show';
+  el.onclick=(e)=>{if(e.target===el)el.remove();};
+  if(action==='approve'){
+    el.innerHTML=`
+      <div class="glass" style="padding:24px;width:90%;max-width:420px">
+        <h3 style="margin:0 0 16px">Approve Preview</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+          <button class="btn ok" style="padding:10px;font-size:14px" onclick="submitReview(${qid},'approve','Perfect — ready for upload')">${icn('check','14')} Perfect — ready</button>
+          <button class="btn" style="padding:10px;font-size:14px" onclick="submitReview(${qid},'approve','Good, minor tweaks later')">${icn('check','14')} Good — tweaks later</button>
+          <button class="btn ghost" style="padding:10px;font-size:14px" onclick="submitReview(${qid},'approve','Approved')">${icn('check','14')} Approve</button>
+        </div>
+        <button class="btn ghost" style="width:100%" onclick="el.remove()">Cancel</button>
+      </div>`;
+  } else {
+    el.innerHTML=`
+      <div class="glass" style="padding:24px;width:90%;max-width:480px">
+        <h3 style="margin:0 0 16px;color:var(--bad)">Reject Preview</h3>
+        <textarea id="rejectNote" placeholder="Feedback for the agent..." style="width:100%;min-height:80px;margin-bottom:12px"></textarea>
+        <div style="display:flex;gap:8px">
+          <button class="btn danger" onclick="submitReview(${qid},'reject',document.getElementById('rejectNote').value||'Rejected')">${icn('close','14')} Reject</button>
+          <button class="btn ghost" onclick="el.remove()">Cancel</button>
+        </div>
+      </div>`;
+  }
+  document.body.appendChild(el);
+}
+async function submitReview(qid,action,note){
+  try{await api('/api/queue/'+qid+'/review-action','POST',{action,note,reviewer:'human'});document.querySelectorAll('.modal-overlay').forEach(el=>el.remove());loadQueue();}catch(e){alert('Failed: '+e.message);}
+}
+
+async function loadVoices(){
+  try{const r=await api('/api/voices');STATE.scr.voices=r.voices.map(v=>({...v,selected:v.id===r.default}));renderScriptsReview();}catch(e){STATE.scr.voices=[];renderScriptsReview();}
+}
+function selectVoice(id){STATE.scr.voices=STATE.scr.voices.map(v=>({...v,selected:v.id===id}));renderScriptsReview();}
+async function previewVoice(id,url){if(url){new Audio(url).play().catch(()=>{});}}
+async function generateVideoForScript(idx){alert('Render queued for "'+(STATE.scr.scripts[idx].title||'Script')+'"');}
+function generateAllVideos(){alert('Batch render queued for '+STATE.scr.scripts.length+' scripts');}
+async function loadTasks() {
+  try {
+    const d = await api('/api/tasks');
+    const tasks = d.tasks || [];
+    for (const t of tasks) {
+      if (!STATE.taskItems[t.task_id]) {
+        STATE.taskItems[t.task_id] = { label: t.label || '', created: Date.now() };
+      }
+      STATE.taskItems[t.task_id].status = t.status;
+      STATE.taskItems[t.task_id].message = t.message || '';
+      STATE.taskItems[t.task_id].current = t.current || 0;
+      STATE.taskItems[t.task_id].total = t.total || 0;
+    }
+    updateTaskBar();
+    const el = $('#taskList');
+    if (!tasks.length) {
+      el.innerHTML = '<span class="muted">No active tasks.</span>';
+      return;
+    }
+    el.innerHTML = tasks.map(t => {
+      const st = t.status;
+      const label = STATE.taskItems[t.task_id]?.label || t.label || t.task_id;
+      const pct = t.total > 0 ? Math.min(100, Math.round((t.current / t.total) * 100)) : 0;
+      const bar = t.total > 0 ? `<div class="tb-progress-bar" style="margin:4px 0"><div class="tb-progress-fill" style="width:${pct}%"></div></div>` : '';
+      return `<div class="seg" style="margin-bottom:8px">
+        <div class="row" style="gap:8px;align-items:center">
+          <span class="pill" style="font-size:10px;background:${st === 'done' ? 'rgba(0,200,83,0.15)' : st === 'error' ? 'rgba(255,93,108,0.15)' : 'rgba(255,176,0,0.15)'};border-color:transparent">${st}</span>
+          <strong>${label}</strong>
+          <span class="stat">${t.age_seconds}s</span>
+        </div>
+        ${t.message ? `<div class="muted" style="font-size:12px;margin-top:4px">${t.message}</div>` : ''}
+        ${bar}
+        <div class="muted" style="font-size:11px;margin-top:2px">${t.task_id} · ${t.current}/${t.total}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('loadTasks failed:', e);
+  }
+}
+setInterval(() => { if (document.querySelector('#tasks.active')) loadTasks(); }, 3000);
+
+// init
+loadCatalog();refreshVideoSelect();loadScriptsPdfSelect();
+</script>
+</body>
+</html>

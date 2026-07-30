@@ -1,0 +1,27 @@
+{
+  "id": "nebula",
+  "name": "Nebula Dark",
+  "subject": "Science",
+  "description": "Premium dark glassmorphism — deep midnight base, cyan-to-magenta gradients, frosted glass cards, subtle ambient glow. Maximum visual fidelity.",
+  "palette": {
+    "paper": "#0A0E18",
+    "paper2": "#121726",
+    "ink": "#E4E8F0",
+    "ink_soft": "#9A9BA3",
+    "accent": "#22D9A0",
+    "grid": "rgba(34,217,160,0.06)",
+    "ink_faint": "rgba(34,217,160,0.15)",
+    "glow_cyan": "rgba(34,217,160,0.08)",
+    "glow_magenta": "rgba(230,77,204,0.06)",
+    "surface": "rgba(18,23,38,0.75)"
+  },
+  "fonts": {
+    "display": "Plus Jakarta Sans",
+    "body": "Inter",
+    "mono": "JetBrains Mono",
+    "google": "Plus+Jakarta+Sans:wght@500;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500"
+  },
+  "motif": "glassmorphism + gradient accents + ambient glow + dotted grid",
+  "icon_style": "neon stroke, cyan glow on dark",
+  "image_style_suffix": " dark moody editorial illustration, volumetric rim lighting, deep navy (#0A0E18) background with cyan (#22D9A0) and magenta (#E64DCC) accents, glowing highlights, NO text, cinematic composition"
+}

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>Variant A — Canvas Reader</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d1017;--panel:#161b25;--panel2:#1d2430;--ink:#e8edf5;--muted:#8b97ab;--line:#2a3342;--cobalt:#3a7bff;--hover:rgba(58,123,255,.12)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;background:var(--bg);color:var(--ink);line-height:1.5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;flex-direction:column;gap:20px}
+.open-btn{background:var(--cobalt);color:#fff;border:0;border-radius:10px;padding:14px 28px;font-size:15px;cursor:pointer;transition:opacity .2s}
+.open-btn:hover{opacity:.85}
+.description{color:var(--muted);font-size:13px;max-width:480px;text-align:center;line-height:1.6}
+.desc-highlight{color:var(--ink);font-weight:500}
+
+/* ── modal ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal-overlay.show .modal-panel{animation:slideUp .28s ease-out}
+@keyframes slideUp{0%{opacity:0;transform:translateY(16px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
+
+.modal-panel{background:var(--bg);border:1px solid var(--line);border-radius:14px;width:100%;max-width:1200px;height:min(90vh,820px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+
+.modal-header{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);flex:0 0 auto;min-height:52px}
+.modal-header h2{font-size:14px;font-weight:500;color:var(--ink);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0}
+.modal-header .badge{font-size:11px;color:var(--muted);background:var(--panel2);padding:3px 9px;border-radius:6px;white-space:nowrap}
+.modal-header .close{background:transparent;border:0;color:var(--muted);font-size:22px;cursor:pointer;padding:4px 10px;border-radius:8px;line-height:1;transition:all .15s}
+.modal-header .close:hover{background:var(--panel2);color:var(--ink)}
+
+.modal-body{display:flex;flex:1;min-height:0;overflow:hidden}
+
+.pdf-viewport{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.pdf-viewport iframe{flex:1;border:0;width:100%;height:100%;background:var(--bg)}
+
+.pdf-toolbar{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:10;pointer-events:auto}
+.pdf-toolbar button{background:transparent;border:0;color:var(--muted);cursor:pointer;padding:6px 8px;border-radius:6px;font-size:13px;display:flex;align-items:center;gap:4px;transition:all .15s}
+.pdf-toolbar button:hover{background:var(--hover);color:var(--ink)}
+.pdf-toolbar button.active{color:var(--cobalt)}
+.pdf-toolbar .sep{width:1px;height:18px;background:var(--line);margin:0 4px}
+.pdf-toolbar .page-indicator{font-size:12px;color:var(--muted);padding:0 8px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pdf-toolbar .zoom-indicator{font-size:11px;color:var(--muted);min-width:40px;text-align:center;font-variant-numeric:tabular-nums}
+
+.thumb-rail{width:120px;border-left:1px solid var(--line);overflow-y:auto;padding:8px 6px;flex:0 0 auto;display:flex;flex-direction:column;gap:6px;background:var(--panel)}
+.thumb-rail .thumb-item{aspect-ratio:3/4;background:var(--panel2);border:2px solid transparent;border-radius:6px;overflow:hidden;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);position:relative}
+.thumb-rail .thumb-item.active{border-color:var(--cobalt);background:rgba(58,123,255,.08)}
+.thumb-rail .thumb-item:hover{border-color:var(--muted)}
+.thumb-rail .thumb-item .page-num{position:absolute;bottom:3px;right:4px;background:rgba(0,0,0,.6);color:#fff;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600}
+.thumb-rail .thumb-item .thumb-placeholder{display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted);font-size:9px;line-height:1.2}
+.thumb-rail .thumb-item .thumb-placeholder svg{width:24px;height:24px;opacity:.4}
+
+.loading-skeleton{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:var(--bg);z-index:5}
+.loading-skeleton .bar{height:4px;border-radius:4px;background:linear-gradient(90deg,var(--panel2),var(--line),var(--panel2));background-size:200% 100%;animation:shimmer 1.4s ease-in-out infinite;width:280px}
+.loading-skeleton .bar:nth-child(2){width:200px}
+.loading-skeleton .bar:nth-child(3){width:240px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+.modal-overlay.fullscreen .modal-panel{max-width:100%;width:100%;height:100%;border-radius:0;border:0}
+.modal-overlay.fullscreen .thumb-rail{display:none}
+
+@media(max-width:640px){
+  .modal-overlay{padding:0}
+  .modal-panel{max-width:100%;height:100%;border-radius:0;border:0}
+  .modal-header{padding:10px 12px;min-height:48px}
+  .modal-header h2{font-size:13px}
+  .modal-header .badge{display:none}
+  .thumb-rail{display:none}
+  .pdf-toolbar{bottom:10px;padding:4px 8px;gap:2px;font-size:12px}
+  .pdf-toolbar button{padding:5px 6px;font-size:12px}
+  .pdf-toolbar .page-indicator{font-size:11px;padding:0 4px}
+  .pdf-toolbar .zoom-indicator{display:none}
+  .pdf-toolbar .sep{margin:0 2px}
+}
+</style>
+</head>
+<body>
+<button class="open-btn" onclick="openModal()">📄 Open Canvas Reader</button>
+<p class="description">Split layout: <span class="desc-highlight">thumbnails rail</span> on the right · floating toolbar with zoom/page nav · fullscreen mode · keyboard shortcuts</p>
+
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-panel" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2 id="title">The Periodic Table · Science · Class 11</h2>
+      <span class="badge">12 pages</span>
+      <span class="badge">3.2 MB</span>
+      <button class="close" onclick="closeModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="pdf-viewport">
+        <div class="loading-skeleton" id="loadingSkeleton">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <span style="color:var(--muted);font-size:13px">Loading PDF…</span>
+        </div>
+        <iframe id="pdfFrame" src="about:blank" title="PDF Preview"></iframe>
+        <div class="pdf-toolbar">
+          <button onclick="prevPage()" title="Previous">◀</button>
+          <span class="page-indicator" id="pageIndicator">1 / 12</span>
+          <button onclick="nextPage()" title="Next">▶</button>
+          <span class="sep"></span>
+          <button onclick="zoomOut()" title="Zoom out">−</button>
+          <span class="zoom-indicator" id="zoomIndicator">100%</span>
+          <button onclick="zoomIn()" title="Zoom in">+</button>
+          <span class="sep"></span>
+          <button onclick="downloadPdf()" title="Download">⬇</button>
+          <button onclick="toggleFullscreen()" title="Fullscreen" id="fullscreenBtn">⛶</button>
+        </div>
+      </div>
+      <div class="thumb-rail" id="thumbRail"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let page=1, total=12, zoom=1;
+function openModal(){
+  document.getElementById('modal').classList.add('show');
+  document.getElementById('loadingSkeleton').style.display='flex';
+  document.getElementById('pdfFrame').style.display='none';
+  setTimeout(()=>{
+    document.getElementById('loadingSkeleton').style.display='none';
+    document.getElementById('pdfFrame').src='/api/pdfs/1/file';
+    document.getElementById('pdfFrame').style.display='block';
+  },1200);
+  buildThumbs();
+}
+function closeModal(){
+  document.getElementById('modal').classList.remove('show','fullscreen');
+  document.getElementById('pdfFrame').src='about:blank';
+}
+function nextPage(){if(page<total){page++;updateUI()}}
+function prevPage(){if(page>1){page--;updateUI()}}
+function jumpToPage(n){page=Math.max(1,Math.min(total,n));updateUI();buildThumbs()}
+function zoomIn(){zoom=Math.min(2,zoom+.25);applyZoom()}
+function zoomOut(){zoom=Math.max(.5,zoom-.25);applyZoom()}
+function applyZoom(){const f=document.getElementById('pdfFrame');f.style.transform=`scale(${zoom})`;f.style.transformOrigin='top center';document.getElementById('zoomIndicator').textContent=Math.round(zoom*100)+'%'}
+function toggleFullscreen(){document.getElementById('modal').classList.toggle('fullscreen')}
+function downloadPdf(){const a=document.createElement('a');a.href='/api/pdfs/1/file';a.download='document.pdf';a.click()}
+function updateUI(){document.getElementById('pageIndicator').textContent=`${page} / ${total}`}
+function buildThumbs(){const r=document.getElementById('thumbRail');r.innerHTML='';for(let i=1;i<=total;i++){const d=document.createElement('div');d.className='thumb-item'+(i===page?' active':'');d.innerHTML=`<div class="thumb-placeholder"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M6 7h12M6 11h12M6 15h8"/></svg><span>Page ${i}</span></div><span class="page-num">${i}</span>`;d.onclick=()=>{jumpToPage(i)};r.appendChild(d)}}
+document.addEventListener('keydown',e=>{if(!document.getElementById('modal').classList.contains('show'))return;if(e.key==='Escape')closeModal();if(e.key==='ArrowRight'||e.key==='ArrowDown'){e.preventDefault();nextPage()}if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();prevPage()}if(e.key==='f'||e.key==='F'){e.preventDefault();toggleFullscreen()}});
+</script>
+</body>
+</html>

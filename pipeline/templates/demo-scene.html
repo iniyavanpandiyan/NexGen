@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1080,height=1920"/>
+<title>What Is a Scientific Model?</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#0E1420;color:#E8E9F0;font-family:'Inter',sans-serif}
+#bg{position:absolute;inset:-200px;background:radial-gradient(circle at 30% 25%,rgba(77,143,247,0.08),transparent 60%),radial-gradient(circle at 75% 80%,rgba(139,127,232,0.06),transparent 55%);pointer-events:none;z-index:0}
+#noise{position:absolute;inset:0;z-index:10;pointer-events:none;opacity:.03}
+#noise svg{width:100%;height:100%}
+
+/* Each scene */
+.clip{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:160px 60px;opacity:0;z-index:1}
+
+/* Scene 1: Opening hook */
+.p1-label{font-family:'JetBrains Mono',monospace;font-size:22px;color:#4D8FF7;letter-spacing:3px;text-transform:uppercase;margin-bottom:32px;opacity:0}
+.p1-hero{font-size:80px;font-weight:800;line-height:1.1;text-align:center;max-width:880px;margin-bottom:16px}
+.p1-hero .highlight{background:linear-gradient(135deg,#4D8FF7,#7AC4F5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.p1-sub{font-size:36px;text-align:center;color:#9A9BA3;max-width:800px;opacity:0}
+
+/* Scene 2: Keyword pill caption */
+.p2-label{font-family:'JetBrains Mono',monospace;font-size:22px;color:#7AC4F5;letter-spacing:3px;text-transform:uppercase;margin-bottom:32px;opacity:0}
+.kw-pill{display:inline-block;padding:8px 20px;margin:4px;border-radius:999px;background:rgba(77,143,247,0.1);border:1px solid rgba(77,143,247,0.2);font-size:42px;font-weight:500;opacity:0}
+.kw-pill.active{background:rgba(77,143,247,0.25);border-color:#4D8FF7;color:#fff}
+
+/* Shimmer text */
+.shimmer-text{font-size:40px;line-height:1.4;text-align:center;max-width:880px;color:#C8CCD4}
+.shimmer-text .shimmer{background:linear-gradient(90deg,#C8CCD4 0%,#fff 50%,#C8CCD4 100%);background-size:200% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:shimmer 2s ease-in-out infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Stat row */
+.stat-row{display:flex;gap:16px;margin-top:24px;justify-content:center}
+.stat-pill{padding:20px 36px;border-radius:20px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);text-align:center;opacity:0}
+.stat-num{font-size:60px;font-weight:800;background:linear-gradient(135deg,#4D8FF7,#7AC4F5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-label{font-size:18px;color:#9A9BA3;margin-top:4px}
+
+/* Activity box */
+.activity-box{background:rgba(77,143,247,0.06);border:1px solid rgba(77,143,247,0.15);border-radius:24px;padding:32px 40px;max-width:820px;margin-top:20px;opacity:0}
+.activity-box .act-title{font-family:'JetBrains Mono',monospace;font-size:18px;color:#4D8FF7;letter-spacing:2px;margin-bottom:12px}
+.activity-box .act-text{font-size:32px;line-height:1.4;color:#C8CCD4}
+
+/* Thinking / Did You Know box */
+.think-box{border-left:4px solid #7AC4F5;padding:20px 32px;margin-top:20px;max-width:820px;opacity:0}
+.think-box .think-title{font-family:'JetBrains Mono',monospace;font-size:18px;color:#7AC4F5;letter-spacing:2px;margin-bottom:8px}
+.think-box .think-text{font-size:30px;line-height:1.4;color:#9A9BA3;font-style:italic}
+
+/* Count-up number */
+.count-num{font-size:120px;font-weight:800;letter-spacing:-4px;margin-bottom:16px}
+.count-label{font-size:28px;color:#9A9BA3}
+
+#progress{position:absolute;left:0;bottom:0;height:5px;width:0%;background:linear-gradient(90deg,#4D8FF7,#7AC4F5);z-index:12}
+audio{display:none}
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-width="1080" data-height="1920" data-duration="30" data-fps="30">
+<div id="bg"></div>
+<div id="noise"><svg viewBox="0 0 1080 1920"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3"/></filter><rect width="1080" height="1920" filter="url(#n)"/></svg></div>
+
+<!-- Scene 0: Hook — SLAM text entrance -->
+<div class="clip" id="s0" data-track-index="1" data-start="0" data-duration="5.28">
+  <div class="p1-label">Science · Class 9</div>
+  <div class="p1-hero">How do scientists make sense of <span class="highlight">complex things</span>?</div>
+  <div class="p1-sub">Like a cricket ball flying for a six.</div>
+</div>
+
+<!-- Scene 1: Keyword pills staggered entrance -->
+<div class="clip" id="s1" data-track-index="2" data-start="5.28" data-duration="9.36">
+  <div class="p2-label">💡 The Answer</div>
+  <div style="text-align:center;max-width:880px">
+    <span class="kw-pill" id="kw0">Models</span>
+    <span class="kw-pill" id="kw1">Simplified</span>
+    <span class="kw-pill" id="kw2">Reality</span>
+    <span class="kw-pill" id="kw3">Focus</span>
+    <span class="kw-pill" id="kw4">Important Details</span>
+  </div>
+</div>
+
+<!-- Scene 2: Shimmer text with stat pills -->
+<div class="clip" id="s2" data-track-index="3" data-start="14.64" data-duration="8.28">
+  <div class="p1-label">Let's Build One</div>
+  <div class="shimmer-text">A cricket ball hit for a six.<br>Our question: <span class="shimmer">Will it cross the boundary?</span></div>
+  <div class="stat-row">
+    <div class="stat-pill" id="sp1"><div class="stat-num">Mass</div><div class="stat-label">of the ball</div></div>
+    <div class="stat-pill" id="sp2"><div class="stat-num">Speed</div><div class="stat-label">of the hit</div></div>
+    <div class="stat-pill" id="sp3"><div class="stat-num">Angle</div><div class="stat-label">of launch</div></div>
+  </div>
+</div>
+
+<!-- Scene 3: Activity box -->
+<div class="clip" id="s3" data-track-index="4" data-start="22.92" data-duration="7.96">
+  <div class="p2-label">🤔 Question</div>
+  <div class="shimmer-text">Do we need the <strong>brand of the bat</strong> or the <strong>colour of the ball</strong>?</div>
+  <div class="activity-box" id="act">
+    <div class="act-title">💡 Think It Over</div>
+    <div class="act-text">Of course not! We can ignore those details. Only mass, speed, and direction matter.</div>
+  </div>
+</div>
+
+<!-- Scene 4: Count-up finish -->
+<div class="clip" id="s4" data-track-index="5" data-start="30.88" data-duration="6.2">
+  <div class="count-num" id="counter">3</div>
+  <div class="count-label">Key quantities for a simple model</div>
+  <div class="shimmer-text" style="margin-top:20px;font-size:28px">Mass · Speed · Direction</div>
+</div>
+
+<audio src="narration.wav" data-start="0" data-duration="37.08" data-volume="1"></audio>
+<div id="progress"></div>
+</div>
+<script>
+(function(){
+var tl=gsap.timeline({paused:true});
+
+/* Scene 0: Hook — stagger the elements */
+tl.set("#s0",{opacity:1},0);
+tl.from("#s0 .p1-label",{opacity:0,y:-20,duration:.4,ease:"power2.out"},0.1);
+tl.from("#s0 .p1-hero",{opacity:0,y:40,scale:.9,duration:.6,ease:"back.out(1.7)"},0.3);
+tl.from("#s0 .p1-sub",{opacity:0,y:20,duration:.5},0.8);
+tl.to("#s0",{opacity:0,duration:.3},5.0);
+
+/* Scene 1: Keyword pills stagger in */
+tl.set("#s1",{opacity:1},5.28);
+tl.from("#s1 .p2-label",{opacity:0,y:-16,duration:.3},5.38);
+tl.staggerFrom(".kw-pill",{opacity:0,y:30,scale:.8,duration:.4,ease:"back.out(1.5)"},0.12,5.68);
+tl.to("#s1",{opacity:0,duration:.3},14.36);
+
+/* Scene 2: Shimmer + stat pills */
+tl.set("#s2",{opacity:1},14.64);
+tl.from("#s2 .p1-label",{opacity:0,y:-16,duration:.3},14.74);
+tl.from("#s2 .shimmer-text",{opacity:0,y:20,duration:.5},15.0);
+tl.staggerFrom(".stat-pill",{opacity:0,y:30,duration:.4,ease:"power2.out"},0.15,15.5);
+tl.to("#s2",{opacity:0,duration:.3},22.64);
+
+/* Scene 3: Question + activity box */
+tl.set("#s3",{opacity:1},22.92);
+tl.from("#s3 .p2-label",{opacity:0,y:-16,duration:.3},23.02);
+tl.from("#s3 .shimmer-text",{opacity:0,y:20,duration:.5},23.3);
+tl.from("#act",{opacity:0,y:30,scale:.95,duration:.5,ease:"power2.out"},23.8);
+tl.to("#s3",{opacity:0,duration:.3},30.6);
+
+/* Scene 4: Number count-up */
+tl.set("#s4",{opacity:1},30.88);
+tl.from("#counter",{opacity:0,scale:2,duration:.6,ease:"power2.out"},31.0);
+tl.from("#s4 .count-label",{opacity:0,y:16,duration:.4},31.5);
+tl.from("#s4 .shimmer-text",{opacity:0,y:12,duration:.4},31.9);
+tl.to("#s4",{opacity:0,duration:.3},36.8);
+
+window.__timelines=window.__timelines||{};window.__timelines["main"]=tl;
+})();
+</script>
+</body>
+</html>

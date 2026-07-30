@@ -1,0 +1,24 @@
+{
+  "id": "science",
+  "name": "Cobalt Grid",
+  "subject": "Science",
+  "description": "Warm cream paper, electric cobalt ink (the only ink), permanent graph-paper grid, top/bottom hairlines. Newsreader serif display + Hanken Grotesk body + DM Mono chrome.",
+  "palette": {
+    "paper": "#F4F1EA",
+    "paper2": "#EAE5D8",
+    "ink": "#1A3FB0",
+    "ink_soft": "#5566C8",
+    "accent": "#1A3FB0",
+    "grid": "rgba(26,63,176,0.10)",
+    "ink_faint": "rgba(26,63,176,0.18)"
+  },
+  "fonts": {
+    "display": "Newsreader",
+    "body": "Hanken Grotesk",
+    "mono": "DM Mono",
+    "google": "Newsreader:ital,wght@0,400;1,400&family=Hanken+Grotesk:wght@400;600;700&family=DM+Mono:wght@400;500"
+  },
+  "motif": "graph-grid + hairlines + pixel-glitch + qr-block",
+  "icon_style": "cobalt stroke line-art, orbit ring",
+  "image_style_suffix": " editorial infographic illustration, soft volumetric shading, strictly cobalt blue (#1A3FB0) tones and cream (#F4F1EA) tones only, on a plain cream (#F4F1EA) background, NO other colors, NO text, clean composition"
+}

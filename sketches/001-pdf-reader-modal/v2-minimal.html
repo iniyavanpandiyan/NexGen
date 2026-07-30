@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Variant B — Minimal Immersive</title>
+<style>
+/* ── reset & tokens ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0d1017;--panel:#161b25;--panel2:#1d2430;--ink:#e8edf5;--muted:#8b97ab;--line:#2a3342;--cobalt:#3a7bff;--overlay:rgba(0,0,0,.82);--curve: cubic-bezier(.22,1,.36,1)}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;background:var(--bg);color:var(--ink);line-height:1.5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+
+/* ── open button ── */
+.open-btn{background:var(--cobalt);color:#fff;border:0;border-radius:10px;padding:14px 28px;font-size:15px;cursor:pointer;transition:opacity .2s}
+.open-btn:hover{opacity:.85}
+.open-btn-2{margin-left:12px;background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:14px 28px;font-size:15px;cursor:pointer}
+.open-btn-2:hover{border-color:var(--cobalt);color:var(--ink)}
+
+/* ── overlay ── */
+.overlay{position:fixed;inset:0;background:var(--overlay);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.overlay.show{display:flex}
+.overlay.show .reader{animation:enter .3s var(--curve)}
+@keyframes enter{0%{opacity:0;transform:scale(.92) translateY(12px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+
+/* ── reader container ── */
+.reader{background:var(--bg);width:100%;max-width:960px;height:min(85vh,760px);display:flex;flex-direction:column;border-radius:12px;overflow:hidden;position:relative;box-shadow:0 24px 80px rgba(0,0,0,.6);border:1px solid var(--line)}
+
+/* ── header (collapsed by def, shows on hover/tap) ── */
+.reader-header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line);transition:transform .25s var(--curve),opacity .25s var(--curve);z-index:20;background:var(--bg);flex:0 0 auto}
+.reader-header.hidden{transform:translateY(-100%);opacity:0;pointer-events:none;position:absolute}
+.reader-header h1{font-size:14px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0}
+.reader-header .meta{font-size:11px;color:var(--muted);white-space:nowrap}
+.reader-header .close-btn{background:transparent;border:0;color:var(--muted);font-size:22px;cursor:pointer;padding:4px 10px;border-radius:8px;line-height:1}
+.reader-header .close-btn:hover{background:var(--panel2);color:var(--ink)}
+
+/* ── content area ── */
+.reader-body{flex:1;position:relative;overflow:hidden;min-height:0}
+
+/* ── PDF frame ── */
+.pdf-frame{width:100%;height:100%;border:0;display:block}
+
+/* ── spinner ── */
+.spinner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);z-index:5;transition:opacity .4s}
+.spinner.hide{opacity:0;pointer-events:none}
+.loader{width:36px;height:36px;border:3px solid var(--line);border-top-color:var(--cobalt);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── bottom toolbar (auto hides) ── */
+.reader-toolbar{position:absolute;bottom:0;left:0;right:0;display:flex;align-items:center;gap:4px;padding:10px 16px;background:linear-gradient(transparent, rgba(13,16,23,.92) 30%);z-index:15;transition:opacity .35s var(--curve),transform .35s var(--curve)}
+.reader-toolbar.hidden{opacity:0;transform:translateY(100%);pointer-events:none}
+.reader-toolbar .group{display:flex;align-items:center;gap:2px}
+.reader-toolbar button{background:var(--panel);border:1px solid var(--line);color:var(--muted);cursor:pointer;padding:7px 10px;border-radius:8px;font-size:13px;line-height:1;transition:all .15s}
+.reader-toolbar button:hover{background:var(--panel2);color:var(--ink);border-color:var(--cobalt)}
+.reader-toolbar .sep{width:1px;height:20px;background:var(--line);margin:0 6px}
+
+/* ── page scrubber ── */
+.page-scrubber{display:flex;align-items:center;gap:8px;flex:1;max-width:320px;margin:0 8px}
+.page-scrubber input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:4px;border-radius:4px;background:var(--line);outline:0;cursor:pointer}
+.page-scrubber input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--cobalt);border:2px solid var(--bg);box-shadow:0 0 0 1px var(--cobalt);cursor:pointer}
+.page-scrubber input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--cobalt);border:2px solid var(--bg);box-shadow:0 0 0 1px var(--cobalt);cursor:pointer}
+.page-scrubber .page-label{font-size:12px;color:var(--muted);min-width:54px;text-align:center;font-variant-numeric:tabular-nums}
+
+/* ── gesture zone for tap-to-toggle toolbar ── */
+.gesture-zone{position:absolute;inset:0;z-index:10;cursor:pointer}
+
+/* ── fullscreen ── */
+.overlay.fullscreen .reader{max-width:100%;max-height:100%;width:100%;height:100%;border-radius:0;border:0}
+
+/* ── mobile ── */
+@media(max-width:640px){
+  body{padding:0}
+  .reader{max-width:100%;max-height:100%;height:100%;border-radius:0;border:0}
+  .reader-header{padding:10px 12px}
+  .reader-header h1{font-size:13px}
+  .reader-toolbar{padding:8px 10px 12px;gap:2px}
+  .reader-toolbar button{padding:6px 9px;font-size:12px}
+  .page-scrubber{max-width:none;margin:0 4px;flex:1}
+  .reader-toolbar .group:last-child{display:none} /* hide zoom/fs on mobile */
+}
+</style>
+</head>
+<body>
+
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+  <button class="open-btn" onclick="openReader()">📖 Open Reader (Variant B)</button>
+  <button class="open-btn-2" onclick="openReaderFullscreen()">⛶ Full screen</button>
+</div>
+
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeReader()">
+  <div class="reader" id="reader" onclick="event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="reader-header" id="readerHeader">
+      <h1 id="docTitle">The Periodic Table · Class 11 Science</h1>
+      <span class="meta" id="docMeta">NCERT · 12 pages</span>
+      <button class="close-btn" onclick="closeReader()" aria-label="Close">✕</button>
+    </div>
+
+    <!-- Body -->
+    <div class="reader-body">
+
+      <!-- Spinner -->
+      <div class="spinner" id="spinner">
+        <div class="loader"></div>
+        <span style="color:var(--muted);font-size:13px">Preparing document…</span>
+      </div>
+
+      <!-- PDF -->
+      <iframe class="pdf-frame" id="pdfFrame" src="about:blank" title="PDF preview"></iframe>
+
+      <!-- Tap zone to toggle toolbar -->
+      <div class="gesture-zone" onclick="toggleToolbar()"></div>
+
+      <!-- Bottom toolbar (auto-hides) -->
+      <div class="reader-toolbar" id="readerToolbar">
+        <div class="group">
+          <button onclick="prevPage()" title="Previous" aria-label="Previous page">◀</button>
+          <button onclick="nextPage()" title="Next" aria-label="Next page">▶</button>
+        </div>
+        <div class="sep"></div>
+        <div class="page-scrubber">
+          <span class="page-label" id="pageLabel">1 / 12</span>
+          <input type="range" id="pageSlider" min="1" max="12" value="1" oninput="jumpToPage(+this.value)">
+        </div>
+        <div class="sep"></div>
+        <div class="group">
+          <button onclick="zoomOut()" title="Zoom out" aria-label="Zoom out">−</button>
+          <span style="font-size:11px;color:var(--muted);min-width:34px;text-align:center;font-variant-numeric:tabular-nums" id="zoomLabel">100%</span>
+          <button onclick="zoomIn()" title="Zoom in" aria-label="Zoom in">+</button>
+        </div>
+        <div class="sep"></div>
+        <div class="group">
+          <button onclick="downloadPdf()" title="Download" aria-label="Download PDF">⬇</button>
+          <button onclick="toggleFullscreen()" title="Fullscreen" aria-label="Toggle fullscreen">⛶</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TOTAL = 12;
+let page = 1;
+let zoom = 1;
+let toolbarTimer = null;
+let toolbarVisible = true;
+
+// ── open ──
+function openReader(){
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('spinner').classList.remove('hide');
+  document.getElementById('pdfFrame').style.display = 'none';
+  setTimeout(() => {
+    document.getElementById('spinner').classList.add('hide');
+    document.getElementById('pdfFrame').src = '/api/pdfs/1/file'; // real endpoint
+    document.getElementById('pdfFrame').style.display = 'block';
+  }, 800);
+  resetToolbarTimer();
+}
+function openReaderFullscreen(){ openReader(); toggleFullscreen(); }
+function closeReader(){
+  document.getElementById('overlay').classList.remove('show','fullscreen');
+  document.getElementById('pdfFrame').src = 'about:blank';
+}
+
+// ── toolbar auto-hide ──
+function showToolbar(){
+  document.getElementById('readerHeader').classList.remove('hidden');
+  document.getElementById('readerToolbar').classList.remove('hidden');
+  toolbarVisible = true;
+  resetToolbarTimer();
+}
+function hideToolbar(){
+  document.getElementById('readerHeader').classList.add('hidden');
+  document.getElementById('readerToolbar').classList.add('hidden');
+  toolbarVisible = false;
+}
+function toggleToolbar(){
+  if(toolbarVisible) hideToolbar();
+  else showToolbar();
+}
+function resetToolbarTimer(){
+  clearTimeout(toolbarTimer);
+  toolbarTimer = setTimeout(hideToolbar, 3000);
+}
+// Hover reveals toolbar
+document.getElementById('reader').addEventListener('mouseenter', showToolbar);
+document.getElementById('reader').addEventListener('mousemove', showToolbar);
+// Show on any interaction inside reader
+document.getElementById('reader').addEventListener('touchstart', showToolbar);
+
+// ── page nav ──
+function nextPage(){ if(page < TOTAL){ page++; updatePage(); } }
+function prevPage(){ if(page > 1){ page--; updatePage(); } }
+function jumpToPage(n){
+  page = Math.max(1, Math.min(TOTAL, n));
+  updatePage();
+}
+function updatePage(){
+  document.getElementById('pageLabel').textContent = `${page} / ${TOTAL}`;
+  document.getElementById('pageSlider').value = page;
+  // In real impl this would send PDF page command to iframe
+}
+
+// ── zoom ──
+function zoomIn(){
+  zoom = Math.min(2, zoom + 0.25);
+  applyZoom();
+}
+function zoomOut(){
+  zoom = Math.max(0.5, zoom - 0.25);
+  applyZoom();
+}
+function applyZoom(){
+  const f = document.getElementById('pdfFrame');
+  f.style.transform = `scale(${zoom})`;
+  f.style.transformOrigin = 'top center';
+  f.style.width = `${100/zoom}%`;
+  f.style.height = `${100/zoom}%`;
+  document.getElementById('zoomLabel').textContent = Math.round(zoom * 100) + '%';
+}
+
+// ── fullscreen ──
+function toggleFullscreen(){
+  document.getElementById('overlay').classList.toggle('fullscreen');
+}
+
+// ── download ──
+function downloadPdf(){
+  const a = document.createElement('a');
+  a.href = '/api/pdfs/1/file';
+  a.download = 'document.pdf';
+  a.click();
+}
+
+// ── keyboard ──
+document.addEventListener('keydown', e => {
+  if(!document.getElementById('overlay').classList.contains('show')) return;
+  if(e.key === 'Escape') closeReader();
+  if(e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); nextPage(); }
+  if(e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prevPage(); }
+  if(e.key === 'f' || e.key === 'F') { e.preventDefault(); toggleFullscreen(); }
+  if(e.key === 't' || e.key === 'T') { toggleToolbar(); }
+});
+</script>
+</body>
+</html>

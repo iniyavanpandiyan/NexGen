@@ -1,0 +1,28 @@
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+ENV/
+
+# ---- Local state (never commit) ----
+studio.db
+*.db
+.env
+.env.*
+config.json
+*.log
+
+# ---- Editor / OS ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- Heavy generated assets (live on the parent pipeline project) ----
+renders/
+*.mp4
+*.png
+assets/

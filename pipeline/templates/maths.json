@@ -1,0 +1,24 @@
+{
+  "id": "maths",
+  "name": "Euclid Rose",
+  "subject": "Mathematics",
+  "description": "Editorial proof-sheet — warm ivory paper, deep plum ink, single rose accent. Point lattice grid, geometric construction lines, numbered theorem blocks. Fraunces serif display + Inter body. Reads 'elegant mathematics / constructed geometry'.",
+  "palette": {
+    "paper": "#FBF7F0",
+    "paper2": "#F2EBDD",
+    "ink": "#3A1F4D",
+    "ink_soft": "#6B4A7A",
+    "accent": "#E0457B",
+    "grid": "rgba(58,31,77,0.08)",
+    "ink_faint": "rgba(58,31,77,0.16)"
+  },
+  "fonts": {
+    "display": "Fraunces",
+    "body": "Inter",
+    "mono": "IBM Plex Mono",
+    "google": "Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500"
+  },
+  "motif": "point-lattice grid + geometric construction lines + theorem blocks",
+  "icon_style": "plum stroke geometric construction, rose accent point",
+  "image_style_suffix": " elegant geometric construction illustration, deep plum (#3A1F4D) line-art on warm ivory (#FBF7F0) paper, single rose (#E0457B) accent point, compass/straightedge geometry, NO text, clean editorial composition"
+}

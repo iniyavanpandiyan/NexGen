@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>What Is a Scientific Model?</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#0E1420;font-family:'Inter',system-ui,sans-serif;color:#E8E9F0;-webkit-font-smoothing:antialiased}
+#root{--bg:#0E1420;--surface:#181F33;--text:#E8E9F0;--text-dim:#9A9BA3;--cyan:#4D8FF7;--magenta:#7AC4F5;--mono:'JetBrains Mono',ui-monospace,monospace;--sans:'Inter',system-ui,sans-serif}
+#bg-glow{position:absolute;inset:-200px;background:radial-gradient(circle at 30% 25%,rgba(77,143,247,0.08),transparent 60%),radial-gradient(circle at 75% 80%,rgba(139,127,232,0.06),transparent 55%);pointer-events:none;z-index:0}
+#grain{position:absolute;inset:0;z-index:10;pointer-events:none;opacity:.03}
+#grain svg{width:100%;height:100%}
+
+.clip{position:absolute;inset:0;width:1080px;height:1920px;z-index:1}
+.phase{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:120px 60px 160px;width:100%;height:100%}
+.inner{display:flex;flex-direction:column;align-items:center;max-width:920px;width:100%;gap:32px}
+
+.label{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:var(--cyan);align-self:flex-start}
+.tag{font-family:var(--mono);font-size:18px;color:var(--magenta);letter-spacing:2px;margin-top:-8px;align-self:flex-start}
+
+.img-wrap{width:720px;border-radius:20px;overflow:hidden;box-shadow:0 12px 48px rgba(0,0,0,0.5)}
+.img-wrap img{width:100%;display:block}
+.img-frame{position:absolute;inset:0;border:2px solid rgba(255,255,255,0.06);border-radius:20px;pointer-events:none}
+.img-glow{position:absolute;inset:-2px;border-radius:22px;background:linear-gradient(135deg,transparent 30%,rgba(77,143,247,0.12) 100%);pointer-events:none}
+
+.cap{font-family:var(--sans);font-weight:500;font-size:36px;line-height:1.35;text-align:center;color:var(--text);max-width:880px;min-height:100px}
+.cap .kw{display:inline-block;color:var(--text-dim);transition:color .08s}
+.cap .kw.active{color:var(--cyan)}
+.cap .kw.done{color:var(--text)}
+
+#progress{position:absolute;left:0;bottom:0;height:5px;width:0%;background:linear-gradient(90deg,var(--cyan),var(--magenta));z-index:12}
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-width="1080" data-height="1920" data-duration="__DUR__" data-fps="30">
+  <div id="bg-glow"></div>
+  <div id="grain"><svg viewBox="0 0 1080 1920"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/></filter><rect width="1080" height="1920" filter="url(#n)"/></svg></div>
+
+__PHASES__
+
+  <audio src="narration.wav" data-start="0" data-duration="__DUR__" data-volume="1" preload="auto"></audio>
+  <div id="progress"></div>
+</div>
+<script>
+const phrases = __PHRASES__;
+(function(){
+  const tl = gsap.timeline({paused:true});
+__TL__
+  window.__timelines=window.__timelines||{};
+  window.__timelines["main"]=tl;
+})();
+</script>
+</body>
+</html>
