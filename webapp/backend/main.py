@@ -1134,7 +1134,7 @@ def _process_single_pdf(pid: int, path: str):
             log.warning(f"[process #{pid}] Diagram extraction failed: {e}")
 
 
-@app.post("/api/pdfs/batch-process")
+@app.post("/api/batch/pdfs/process")
 def batch_process_pdfs():
     """Find all unprocessed PDFs and start processing them in background threads:
     identify (Gemma) → extract diagrams → parse. Returns immediately.
@@ -1171,7 +1171,7 @@ def batch_process_pdfs():
     }
 
 
-@app.post("/api/pdfs/batch-identify")
+@app.post("/api/batch/pdfs/identify")
 def batch_identify_pdfs(body: dict = {}):
     """Batch identify selected PDFs: run full fresh identify pipeline for each.
     Accepts {pdf_ids: [1,2,3]}. Returns task_id for progress tracking.
@@ -1207,7 +1207,7 @@ def batch_identify_pdfs(body: dict = {}):
     return {"ok": True, "task_id": task_id, "total": len(pdf_ids)}
 
 
-@app.post("/api/pdfs/batch-extract-diagrams")
+@app.post("/api/batch/pdfs/extract-diagrams")
 def batch_extract_diagrams(body: dict = {}):
     """Batch extract diagrams for selected PDFs using Gemma vision.
     Accepts {pdf_ids: [1,2,3]}. Returns task_id.
@@ -1240,7 +1240,7 @@ def batch_extract_diagrams(body: dict = {}):
     return {"ok": True, "task_id": task_id, "total": len(pdf_ids)}
 
 
-@app.post("/api/pdfs/batch-label-diagrams")
+@app.post("/api/batch/pdfs/label-diagrams")
 def batch_label_diagrams(body: dict = {}):
     """Batch label all unlabeled diagrams for selected PDFs via Gemma vision.
     Accepts {pdf_ids: [1,2,3]}. Returns task_id.
@@ -1310,7 +1310,7 @@ def batch_label_diagrams(body: dict = {}):
     return {"ok": True, "task_id": task_id, "total": len(pdf_ids)}
 
 
-@app.post("/api/pdfs/batch-parse")
+@app.post("/api/batch/pdfs/parse")
 def batch_parse_pdfs(body: dict = {}):
     """Batch LLM parse selected PDFs: extract text + generate structured scripts.
     Accepts {pdf_ids: [1,2,3]}. Returns task_id.

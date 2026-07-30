@@ -12,9 +12,11 @@ node_modules/
 *.jpg
 *.jpeg
 *.webp
+*.jpx
 output/
 rendered/
 .preview_state.json
 .memory/
 .hermes/
 assets/pdfs/
+hyperframes/

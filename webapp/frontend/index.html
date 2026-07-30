@@ -88,6 +88,7 @@
   .cat-card:hover{border-color:var(--glass-border-hover);box-shadow:0 4px 24px rgba(0,0,0,0.3)}
   .cat-header{display:flex;align-items:center;gap:10px;cursor:pointer;padding:14px 18px;transition:background .15s}
   .cat-header:hover{background:var(--glass-highlight)}
+  .cat-header input[type=checkbox]{width:auto;height:auto;margin:0;padding:0;border:none;background:none;border-radius:0;box-shadow:none;flex-shrink:0;accent-color:var(--cobalt)}
 
   /* facets */
   .facets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
@@ -159,6 +160,7 @@
   .batch-bar .count{font-size:13px;font-weight:500;color:var(--ink);white-space:nowrap}
   .batch-bar .sep{color:var(--ink-muted);font-size:11px}
   .batch-bar .actions{display:flex;gap:6px;flex-wrap:wrap}
+  .batch-bar input[type=checkbox]{width:auto;height:auto;margin:0;padding:0;border:none;background:none;border-radius:0;box-shadow:none;accent-color:var(--cobalt)}
   @media (max-width:760px){
     .batch-bar{bottom:56px;padding:8px 12px;gap:5px;max-width:96vw}
     .batch-bar .actions button{font-size:11px;padding:4px 7px}
@@ -584,10 +586,10 @@ function batchAction(action){
   const ids = [...SELECTED];
   if(!ids.length)return;
   const endpoints = {
-    identify: '/api/pdfs/batch-identify',
-    parse: '/api/pdfs/batch-parse',
-    diagrams: '/api/pdfs/batch-extract-diagrams',
-    label: '/api/pdfs/batch-label-diagrams',
+    identify: '/api/batch/pdfs/identify',
+    parse: '/api/batch/pdfs/parse',
+    diagrams: '/api/batch/pdfs/extract-diagrams',
+    label: '/api/batch/pdfs/label-diagrams',
   };
   const labels = {
     identify: 'Identifying',
