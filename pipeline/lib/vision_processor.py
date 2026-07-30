@@ -225,8 +225,8 @@ def main():
 
     if args.serve:
         print("Starting llama-server ...")
-        model_path = os.path.expanduser("~/models/gemma-4/gemma-4-E2B-it-Q4_K_M.gguf")
-        mmproj_path = os.path.expanduser("~/models/gemma-4/mmproj-F16.gguf")
+        model_path = os.path.expanduser("~/models/gemma-4-E4B/gemma-4-E4B-it-ultra-uncensored-heretic-Q4_K_M.gguf")
+        mmproj_path = os.path.expanduser("~/models/gemma-4-E4B/gemma-4-E4B-it-mmproj-BF16.gguf")
         if not os.path.exists(model_path):
             print(f"Model not found at {model_path}")
             sys.exit(1)
