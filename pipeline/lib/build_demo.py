@@ -7,7 +7,7 @@ Animation patterns match the hf-demo exactly: elastic bounce, pill stagger back.
 
 import argparse, json, os, re, subprocess, sys, shutil, urllib.request, urllib.error, difflib, random
 
-ROOT = "/home/fiipadmin/projects/cbse-youtube-channel"
+ROOT = "/home/fiipadmin/workspace/NexGen"
 VENV = "/home/fiipadmin/.hermes/hermes-agent/venv"
 PY = os.path.join(VENV, "bin", "python")
 EDGE_TTS = os.path.join(VENV, "bin", "edge-tts")

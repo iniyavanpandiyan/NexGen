@@ -159,7 +159,7 @@ def clean_and_generate(raw_text: str, pdf_title: str = "", pdf_class: str = "",
                         "Authorization": f"Bearer {OPENROUTER_KEY}",
                         "Content-Type": "application/json",
                         "HTTP-Referer": "https://edu.fixitinpost.in",
-                        "X-Title": "CBSE Video Studio",
+                        "X-Title": "NexGen",
                     },
                     json={
                         "model": OPENROUTER_MODEL,

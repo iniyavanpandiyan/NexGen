@@ -42,4 +42,4 @@ Finish Phase 1: find all missing subjects on NCERT24.com, then move to Phase 2 (
 ## Migration History
 - **July 3, 2026:** Migrated from OpenClaw workspace to Hermes
 - All source data preserved at `/home/fiipadmin/.openclaw/workspace/cbse-youtube-channel/`
-- Project now managed at `/home/fiipadmin/projects/cbse-youtube-channel/`
+- Project now managed at `/home/fiipadmin/workspace/NexGen/`

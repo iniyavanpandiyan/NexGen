@@ -1,7 +1,7 @@
-"""SQLite persistence for the CBSE video studio web app."""
+"""SQLite persistence for the NexGen web app."""
 import sqlite3, os, json, time
 
-DB_PATH = os.environ.get("CBSE_DB", os.path.join(os.path.dirname(__file__), "studio.db"))
+DB_PATH = os.environ.get("NEXGEN_DB", os.environ.get("CBSE_DB", os.path.join(os.path.dirname(__file__), "studio.db")))
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS pdfs (

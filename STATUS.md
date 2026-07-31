@@ -13,7 +13,7 @@ _Last updated: 2026-07-09_
 - **439 chapter PDFs** migrated to `assets/pdfs/{class-N}/{subject}/` (1.2 GB, verified count matches source).
   - Old location was `~/.openclaw/workspace/cbse-youtube-channel/assets/pdfs/` — now the active project is the single source of truth.
 - **Remotion app** renders verified (1080x1920 @ 30fps MP4). Fixed broken entry: `index.tsx` → `Root.tsx` (`<Composition>`) → `HelloWorld.tsx`.
-- **HyperFrames installed** (`projects/cbse-youtube-channel/hyperframes/`, cloned `heygen-com/hyperframes`):
+- **HyperFrames installed** (`workspace/NexGen/hyperframes/`, cloned `heygen-com/hyperframes`):
   - bun 1.3.14 installed at `~/.bun/bin` (added to PATH via ~/.bashrc).
   - `bun install` (1563 pkgs) + `bun run build` all green.
   - CLI v0.7.46 works: `npx hyperframes --help` shows render/preview/lint/tts/transcribe.

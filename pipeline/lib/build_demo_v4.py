@@ -5,7 +5,7 @@ No images needed — the animations ARE the visual. Graph-paper grid background.
 
 import argparse, json, os, re, subprocess, sys, shutil, urllib.request, urllib.error, difflib
 
-ROOT = "/home/fiipadmin/projects/cbse-youtube-channel"
+ROOT = "/home/fiipadmin/workspace/NexGen"
 VENV = "/home/fiipadmin/.hermes/hermes-agent/venv"
 EDGE_TTS = os.path.join(VENV, "bin", "edge-tts")
 

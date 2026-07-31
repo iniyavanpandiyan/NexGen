@@ -92,7 +92,7 @@ cbse-youtube-channel/
 ## 📝 Migration History
 - **July 3, 2026:** Migrated from OpenClaw workspace to Hermes
 - Original data preserved at: `/home/fiipadmin/.openclaw/workspace/cbse-youtube-channel/`
-- New project location: `/home/fiipadmin/projects/cbse-youtube-channel/`
+- New project location: `/home/fiipadmin/workspace/NexGen/`
 
 ---
 

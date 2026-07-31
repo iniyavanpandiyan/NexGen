@@ -1,5 +1,5 @@
 """
-VRAM Manager for CBSE Video Studio.
+VRAM Manager for NexGen.
 Intelligently manages GPU memory between:
   - Chatterbox TTS Server (:8210) — ~4GB VRAM
   - ComfyUI Z Image Turbo (:8188) — ~7GB VRAM

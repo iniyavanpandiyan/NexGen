@@ -1,4 +1,4 @@
-"""CBSE Video Studio — FastAPI backend.
+"""NexGen — FastAPI backend.
 Exposes: PDF catalogue, script editor + PDF-derived script generation, image
 generation/review/feedback, HyperFrames template explorer, versioning, and a
 task queue that drives the real pipeline (pypdf -> gen_images -> build_short ->
@@ -27,7 +27,7 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout),
     ],
 )
-log = logging.getLogger("cbse-studio")
+log = logging.getLogger("nexgen")
 
 # Ensure project root is on sys.path for pipeline.lib imports
 import sys as _sys
@@ -53,7 +53,7 @@ import sqlite3
 import catalog
 import settings
 
-app = FastAPI(title="CBSE Video Studio")
+app = FastAPI(title="NexGen")
 db.init()
 catalog.scan(force=False)  # index PDFs on boot
 settings.start_watch_background(catalog)  # watch folder scanner
@@ -396,10 +396,9 @@ def pdf_parse(pid: int):
                         f"Designed for CBSE student explainer video, modern flat style."
                     )
 
-    # Store chapter name from first script title
-    chapter_name = (scripts[0]["title"] if scripts else None)
-    if chapter_name:
-        conn.execute("UPDATE pdfs SET chapter_name=? WHERE id=?", (chapter_name, pid))
+    # NOTE: chapter_name is intentionally NOT updated here. It is sourced
+    # only from the document itself (known mapping / vision / content
+    # extraction). Script titles are creative LLM output, not textbook data.
 
     conn.commit()
     conn.close()
@@ -412,7 +411,6 @@ def pdf_parse(pid: int):
         "total_chars": len(result["text"]),
         "pdf_id": pid,
         "title": r["title"] or "",
-        "chapter_name": chapter_name,
     }
 
 @app.post("/api/pdfs/{pid}/vision-scripts")
@@ -686,10 +684,15 @@ def pdf_comprehensive_analyze(pid: int, body: dict = {}):
             if syn and "error" not in syn:
                 conn3 = db.get_conn()
                 updates = ["identified_method='comprehensive'"]
-                if syn.get("chapter_name"):
+                # Prefer the existing document-derived chapter name. The LLM
+                # synthesis may paraphrase, so only fall back to it when the
+                # current name is empty or placeholder-like.
+                existing = (r.get("chapter_name") or "").rstrip(':;, ')
+                existing_ok = _chapter_name_ok(existing)
+                if not existing_ok and syn.get("chapter_name"):
                     ch_name = syn["chapter_name"][:200].rstrip(':;, ')
                     updates.append(f"chapter_name='{ch_name.replace(chr(39), chr(39)*2)}'")
-                if syn.get("chapter_number") is not None:
+                if syn.get("chapter_number") is not None and not existing_ok:
                     updates.append(f"chapter_number={int(syn['chapter_number'])}")
                 if len(updates) > 1:
                     conn3.execute(f"UPDATE pdfs SET {', '.join(updates)} WHERE id=?", (pid,))
@@ -823,8 +826,14 @@ def pdf_reanalyze_with_context(pid: int):
     except Exception as e:
         raise HTTPException(502, f"Analysis failed: {e}")
 
-    # Store updates
-    if parsed.get("chapter_name"):
+    # Store updates — but NEVER overwrite an existing document-derived
+    # chapter name with LLM output. Only fill in when nothing good exists.
+    conn2r = db.get_conn()
+    er = conn2r.execute("SELECT chapter_name FROM pdfs WHERE id=?", (pid,)).fetchone()
+    existing_name = (er["chapter_name"] or "").rstrip(':;, ') if er else ""
+    conn2r.close()
+    existing_ok = _chapter_name_ok(existing_name)
+    if parsed.get("chapter_name") and not existing_ok:
         conn = db.get_conn()
         conn.execute(
             "UPDATE pdfs SET chapter_name=?, chapter_number=?, identified_method=? WHERE id=?",
@@ -886,8 +895,66 @@ def identify_pdf(pid: int):
     }
 
 
+def _chapter_name_ok(name: str) -> bool:
+    """Return True if a chapter name looks like real document data
+    (not a placeholder, empty, or numbered-only string)."""
+    if not name:
+        return False
+    name = name.strip().rstrip(':;, ')
+    _subject_names = {
+        "physical education", "social science", "mathematics", "science",
+        "english", "hindi", "sanskrit", "maths",
+    }
+    return bool(len(name) >= 4
+                and not re.match(r'^Chapter\s+\d+$', name, re.I)
+                and not re.match(r'^\d+$', name)
+                and name.lower() not in _subject_names)
+
+
+def _aggregate_document_chapter_name(pdf_id: int, db_conn=None) -> str:
+    """Deterministically combine per-page chapter names extracted verbatim
+    from the source document (pdf_comprehensive.chapter_context).
+
+    Each page of the comprehensive pass records the chapter title exactly as
+    printed on that page. Aggregating them — most-frequent-wins, ties broken
+    by longest name — gives maximum accuracy with zero LLM invention.
+    Returns '' if no usable per-page names exist.
+    """
+    own = db_conn is None
+    if own:
+        db_conn = db.get_conn()
+    try:
+        rows = db_conn.execute(
+            "SELECT result_json FROM pdf_comprehensive WHERE pdf_id=?", (pdf_id,)
+        ).fetchall()
+        from collections import Counter
+        counts: Counter = Counter()
+        longest = {}
+        for r in rows:
+            try:
+                rj = r["result_json"] if isinstance(r, (dict, sqlite3.Row)) else r[0]
+                data = json.loads(rj or "{}")
+            except (ValueError, TypeError):
+                continue
+            ctx = data.get("chapter_context")
+            if not ctx or not isinstance(ctx, str):
+                continue
+            name = ctx.strip().rstrip(':;, ')
+            if _chapter_name_ok(name):
+                counts[name] += 1
+                if len(name) > len(longest.get(name, "")):
+                    longest[name] = name
+        if not counts:
+            return ""
+        # Most frequent first; ties → longest name
+        best = max(counts.items(), key=lambda kv: (kv[1], len(kv[0])))
+        return best[0]
+    finally:
+        if own:
+            db_conn.close()
+
+
 def _identify_fresh(pid: int, path: str, task_id: str = ""):
-    """Full fresh identify pipeline: TOC → diagrams → comprehensive → synthesis."""
     try:
         # Step 1: Quick TOC extract as initial guess
         from webapp.backend.toc_extractor import extract_chapter
@@ -969,21 +1036,33 @@ def _identify_fresh(pid: int, path: str, task_id: str = ""):
 
                 if comp_result and comp_result.get("synthesis"):
                     syn = comp_result["synthesis"]
-                    ch_name = (syn.get("chapter_name") or "").rstrip(':;, ')
-                    ch_num = syn.get("chapter_number") or initial_number
-                    # Quality check: reject poor synthesis names
-                    is_poor_syn = (
-                        not ch_name or len(ch_name) < 5
-                        or re.match(r'^Chapter\s+\d+$', ch_name, re.I)
-                        or re.match(r'^\d+$', ch_name)
-                    )
-                    if is_poor_syn and initial_name and len(initial_name) >= 5:
+                    syn_name = (syn.get("chapter_name") or "").rstrip(':;, ')
+                    syn_num = syn.get("chapter_number") or initial_number
+                    # Document-derived names are authoritative — they come
+                    # straight from the PDF. Priority:
+                    #   1. aggregated per-page chapter_context (verbatim, page-by-page)
+                    #   2. TOC/known/vision initial name
+                    #   3. LLM synthesis name (only as last-resort fallback)
+                    agg_name = _aggregate_document_chapter_name(pid)
+                    if _chapter_name_ok(agg_name):
+                        ch_name = agg_name
+                        ch_num = initial_number or syn_num
+                        ch_method = "page-aggregated"
+                    elif _chapter_name_ok(initial_name):
                         ch_name = initial_name
-                        ch_num = initial_number or ch_num
+                        ch_num = initial_number or syn_num
+                        ch_method = initial_method
+                    else:
+                        ch_name = syn_name
+                        ch_num = syn_num
+                        ch_method = "comprehensive"
+                    is_poor_syn = not _chapter_name_ok(ch_name)
                     conn3 = db.get_conn()
                     conn3.execute(
                         "UPDATE pdfs SET chapter_name=?, chapter_number=?, identified_method=? WHERE id=?",
-                        (ch_name, ch_num, "comprehensive" if not is_poor_syn else "heuristic", pid),
+                        (ch_name, ch_num,
+                         "heuristic" if is_poor_syn else ch_method,
+                         pid),
                     )
                     conn3.commit()
                     conn3.close()
@@ -1092,10 +1171,14 @@ def _identify_with_vision(pid: int, path: str):
             return
 
         conn = db.get_conn()
-        updates = ["identified_method='vision'"]
-        if ch_name:
+        existing_row = conn.execute("SELECT chapter_name FROM pdfs WHERE id=?", (pid,)).fetchone()
+        existing = (existing_row["chapter_name"] or "").rstrip(':;, ') if existing_row else ""
+        existing_ok = _chapter_name_ok(existing)
+        updates = ["identified_method='vision'" if not existing_ok else None]
+        updates = [u for u in updates if u]
+        if ch_name and not existing_ok:
             updates.append(f"chapter_name='{ch_name.replace(chr(39), chr(39)*2)}'")
-        if ch_num is not None:
+        if ch_num is not None and not existing_ok:
             updates.append(f"chapter_number={int(ch_num)}")
         if len(updates) > 1:
             conn.execute(f"UPDATE pdfs SET {', '.join(updates)} WHERE id=?", (pid,))
@@ -1333,9 +1416,12 @@ def batch_identify_pdfs(body: dict = {}):
 @app.post("/api/batch/pdfs/extract-diagrams")
 def batch_extract_diagrams(body: dict = {}):
     """Batch extract diagrams for selected PDFs using Gemma vision.
-    Accepts {pdf_ids: [1,2,3]}. Returns task_id.
+    Accepts {pdf_ids: [1,2,3]}. Optional: {layout: bool, opencv: bool}
+    toggles layout-aware detection and OpenCV bbox refinement.
     """
     pdf_ids = body.get("pdf_ids", [])
+    use_layout = body.get("layout", True)
+    refine_opencv = body.get("opencv", True)
     if not pdf_ids:
         raise HTTPException(400, "No pdf_ids provided")
 
@@ -1349,7 +1435,8 @@ def batch_extract_diagrams(body: dict = {}):
                 path = pdf_path(pid)
                 if path:
                     conn = db.get_conn()
-                    extract_and_store(path, pdf_id=pid, db_conn=conn)
+                    extract_and_store(path, pdf_id=pid, db_conn=conn,
+                                      use_layout=use_layout, refine_opencv=refine_opencv)
                     conn.close()
                 completed += 1
                 _update_task(tid, "running", f"{completed}/{total} diagram extractions done", completed, total)
@@ -1471,10 +1558,8 @@ def batch_parse_pdfs(body: dict = {}):
                     pdf_subject=r["subject"] or "",
                     llm_backend=_llm_backend,
                 )
-                if scripts:
-                    chapter_name = scripts[0]["title"] if scripts else None
-                    if chapter_name:
-                        conn.execute("UPDATE pdfs SET chapter_name=? WHERE id=?", (chapter_name, pid))
+                # NOTE: chapter_name is intentionally NOT overwritten with
+                # the script title — it must remain document-sourced.
                 conn.commit()
                 conn.close()
                 completed += 1
@@ -2018,7 +2103,7 @@ def claim_queue_item(qid: int, body: dict = {}):
             "FROM pdf_diagrams WHERE pdf_id=? AND status='analyzed' AND description NOT LIKE '%No diagram%'",
             (pdf_id,),
         ).fetchall()
-        proj_root = "/home/fiipadmin/projects/cbse-youtube-channel/"
+        proj_root = "/home/fiipadmin/workspace/NexGen/"
         diag_list = []
         for d in diags:
             dd = dict(d)
@@ -2618,7 +2703,7 @@ def finalize_video(vid: int, body: dict = {}):
 def agent_info():
     """Returns pipeline schema so any agent knows how to interact."""
     return {
-        "pipeline": "cbse-video-studio",
+        "pipeline": "nexgen",
         "version": "1.0",
         "queue_endpoint": "GET /api/queue?status=queued",
         "claim_endpoint": "POST /api/queue/{id}/claim  body: {agent: string}",
@@ -2664,7 +2749,7 @@ def agent_get_diagrams(video_id: int):
         # Build web-accessible URL
         rel_path = d["image_path"]
         # Strip project root prefix to get relative path
-        proj_root = "/home/fiipadmin/projects/cbse-youtube-channel/"
+        proj_root = "/home/fiipadmin/workspace/NexGen/"
         if rel_path and rel_path.startswith(proj_root):
             d["web_url"] = f"/api/files/{rel_path[len(proj_root):]}"
         else:
@@ -2694,7 +2779,7 @@ def serve_file(filepath: str):
     Restricted to assets/ and pipeline/ directory trees.
     """
     from pathlib import Path as _P
-    safe = _P("/home/fiipadmin/projects/cbse-youtube-channel").resolve()
+    safe = _P("/home/fiipadmin/workspace/NexGen").resolve()
     requested = (safe / filepath).resolve()
     try:
         requested.relative_to(safe)
@@ -2855,10 +2940,28 @@ def get_settings():
     watch_interval = settings.get_setting(conn, "watch_interval", 60)
     llm_backend = settings.get_setting(conn, "llm_backend", "openrouter")
     conn.close()
+
+    # LLM backend health status (best-effort, non-blocking)
+    llm_status = {}
+    if llm_backend == "local":
+        LLAMA_HOST = os.environ.get("LLAMA_HOST", "http://127.0.0.1:8082")
+        try:
+            import urllib.request as _ur
+            with _ur.urlopen(f"{LLAMA_HOST}/health", timeout=3) as _r:
+                _b = _r.read().decode("utf-8", "replace")
+                llm_status = {"ok": "ok" in _b, "url": LLAMA_HOST}
+        except Exception as _e:
+            llm_status = {"ok": False, "url": LLAMA_HOST, "error": str(_e)[:120]}
+    elif llm_backend == "openrouter":
+        from pipeline.lib.llm_script_gen import OPENROUTER_KEY as _or_key
+        llm_status = {"ok": bool(os.environ.get("OPENROUTER_API_KEY", "")) or bool(_or_key),
+                      "provider": "OpenRouter"}
+
     return {
         "watch_folders": watch_folders,
         "watch_interval": watch_interval,
         "llm_backend": llm_backend,
+        "llm_status": llm_status,
     }
 
 
@@ -3119,7 +3222,7 @@ def image_generate(req: ImageGenRequest):
         try:
             seed = int(time.time() * 1000) % 999999
             prompt = _zimage_graph(req.prompt, seed=seed, size=512)
-            pid_data = json.dumps({"prompt": prompt, "client_id": "cbse-studio"}).encode()
+            pid_data = json.dumps({"prompt": prompt, "client_id": "nexgen"}).encode()
             req2 = urllib.request.Request(
                 _COMFY + "/prompt", data=pid_data,
                 headers={"Content-Type": "application/json"}, method="POST"
@@ -3143,7 +3246,7 @@ def image_generate(req: ImageGenRequest):
                 fname = result["outputs"]["9"]["images"][0]["filename"]
                 src = f"/home/fiipadmin/comfy/ComfyUI/output/{fname}"
                 if os.path.exists(src):
-                    dst = Path(tempfile.gettempdir()) / f"cbse_img_{pid[:8]}.png"
+                    dst = Path(tempfile.gettempdir()) / f"nexgen_img_{pid[:8]}.png"
                     # Copy and resize to 512×512
                     from PIL import Image
                     im = Image.open(src).convert("RGB")

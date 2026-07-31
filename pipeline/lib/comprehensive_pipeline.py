@@ -19,7 +19,7 @@ from typing import Optional
 
 LLAMA_HOST = os.environ.get("LLAMA_HOST", "http://127.0.0.1:8082")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-log = logging.getLogger("cbse-studio.comprehensive")
+log = logging.getLogger("nexgen.comprehensive")
 
 # Gemma concurrency cap (avoid hammering llama-server)
 GEMMA_SEM = threading.Semaphore(2)
@@ -100,11 +100,17 @@ def _call_gemma_vision(image_path: str, page_text: str, page_num: int) -> dict:
         prompt = (
             f"You are analyzing PAGE {page_num + 1} of a CBSE/NCERT textbook.\n\n"
             f"Extracted text from this page:\n{page_text[:8000]}\n\n"
-            "Analyze this page holistically. Return ONLY valid JSON with these fields:\n"
+            "You are a PURE DATA INTERPRETER. Do not invent, paraphrase, reword, "
+            "or embellish any content. Copy text and figure labels EXACTLY as "
+            "printed on the page. Analyze this page holistically. "
+            "Return ONLY valid JSON with these fields:\n"
             "- 'page_number': the page number (1-indexed)\n"
             "- 'summary': 2-3 sentence summary of what this page covers\n"
-            "- 'chapter_context': the chapter name/title if detectable from this page\n"
-            "- 'diagrams': array of {label, description} for any diagrams/figures/tables on this page (empty array if none)\n"
+            "- 'chapter_context': the chapter name/title VERBATIM as printed on "
+            "this page if visible (or null)\n"
+            "- 'diagrams': array of {label, description} for any diagrams/figures/tables "
+            "on this page (empty array if none) — label copied VERBATIM from the "
+            "figure caption, description a factual 1-2 sentence reading of the diagram\n"
             "- 'key_concepts': array of key terms/concepts introduced on this page (max 5)\n"
             "- 'has_activity': boolean — whether this page has activity/experiment boxes\n"
             "- 'page_type': one of 'chapter_start', 'content', 'activity', 'summary', 'exercise', 'reference'\n"
@@ -194,13 +200,19 @@ def _synthesize_all_pages(all_pages: list, pdf_title: str, pdf_class: str, pdf_s
     prompt = (
         f"Textbook: Class {pdf_class}, Subject: {pdf_subject or '?'}, Title: {pdf_title or '?'}\n\n"
         f"Here are the page-by-page analyses of the entire textbook:\n{summaries_text}\n\n"
-        "Based on ALL pages above, provide a JSON synthesis with:\n"
-        "- 'chapter_name': the main chapter title of this PDF (or null if multi-chapter)\n"
-        "- 'chapter_number': the chapter number (or null)\n"
-        "- 'book_title': the full textbook title\n"
+        "You are a PURE DATA INTERPRETER. Do not invent, paraphrase, reword, or "
+        "embellish any information. Quote content EXACTLY as it appears in the source.\n"
+        "Provide a JSON synthesis with:\n"
+        "- 'chapter_name': the main chapter title EXACTLY as written on the title "
+        "page of this PDF — copy it VERBATIM, letter-for-letter, in its original "
+        "language. Never rephrase it (or null if multi-chapter)\n"
+        "- 'chapter_number': the chapter number as printed (or null)\n"
+        "- 'book_title': the full textbook title VERBATIM as printed\n"
         "- 'total_pages_analyzed': count of pages analyzed\n"
-        "- 'all_diagrams': consolidated list of {page, label, description} of ALL diagrams across the book\n"
-        "- 'key_topics': list of major topics covered (max 15)\n"
+        "- 'all_diagrams': consolidated list of {page, label, description} where "
+        "label and description are copied VERBATIM from the source page text\n"
+        "- 'key_topics': list of major topics covered (max 15) — use the section "
+        "headings from the book, do not invent topics\n"
         "- 'has_activities': boolean — does the book have activity/experiment sections\n"
         "- 'difficulty': one of 'basic', 'intermediate', 'advanced'\n"
         "Return ONLY valid JSON."

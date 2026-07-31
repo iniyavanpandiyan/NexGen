@@ -1,4 +1,4 @@
-# NexGen — CBSE Video Studio (web app)
+# NexGen — web app
 
 A web app to track NCERT explainer-short video production: PDF catalogue with
 per-PDF video/version stats, a script editor with PDF-derived draft generation,

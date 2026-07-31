@@ -4,7 +4,7 @@ import argparse, json, os, sys, time, shutil, subprocess, urllib.request, urllib
 from PIL import Image
 import numpy as np
 
-ROOT = "/home/fiipadmin/projects/cbse-youtube-channel"
+ROOT = "/home/fiipadmin/workspace/NexGen"
 COMFY = "http://127.0.0.1:8188"
 COMFY_OUT = "/home/fiipadmin/comfy/ComfyUI/output"
 

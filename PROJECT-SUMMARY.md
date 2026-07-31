@@ -9,7 +9,7 @@ Build a YouTube channel using **Remotion** to produce short educational videos (
 
 ### 1. Data Migration from OpenClaw to Hermes
 - **Migrated** all project data from `/home/fiipadmin/.openclaw/workspace/cbse-youtube-channel/`
-- **Created** new project structure at `/home/fiipadmin/projects/cbse-youtube-channel/`
+- **Created** new project structure at `/home/fiipadmin/workspace/NexGen/`
 - **Preserved** all original files in OpenClaw workspace as backup
 
 ### 2. Created Kanban Board System

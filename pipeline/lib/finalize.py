@@ -8,7 +8,7 @@ in sync — the picture changes exactly when each spoken segment begins.
 """
 import json, os, subprocess, sys, argparse
 
-ROOT = "/home/fiipadmin/projects/cbse-youtube-channel"
+ROOT = "/home/fiipadmin/workspace/NexGen"
 
 
 def main():

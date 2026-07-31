@@ -22,7 +22,7 @@ auth store at call time.
 """
 import argparse, json, os, re, sys, time, urllib.request, urllib.error
 
-ROOT = "/home/fiipadmin/projects/cbse-youtube-channel"
+ROOT = "/home/fiipadmin/workspace/NexGen"
 AUTH = "/home/fiipadmin/.hermes/auth.json"
 BASE_URL = "https://inference-api.nousresearch.com/v1"
 CHAT_MODEL = "tencent/hy3:free"

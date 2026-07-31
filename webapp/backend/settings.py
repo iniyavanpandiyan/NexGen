@@ -1,8 +1,8 @@
-"""Settings management for CBSE Video Studio — persisted in SQLite settings table."""
+"""Settings management for NexGen — persisted in SQLite settings table."""
 import os, json, time, threading, logging
 from pathlib import Path
 
-log = logging.getLogger("cbse-studio.settings")
+log = logging.getLogger("nexgen.settings")
 
 DEFAULT_WATCH_INTERVAL = 60  # seconds between scans
 

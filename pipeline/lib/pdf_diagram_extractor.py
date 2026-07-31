@@ -115,10 +115,16 @@ def _gemma_analyze_image(image_path: str, task: str = "diagram") -> dict:
             "- 'title': the title or caption of the diagram\n"
             "- 'description': a 1-2 sentence description of what the diagram shows\n"
             "- 'bbox': bounding box in fractional coordinates [x1, y1, x2, y2] where values are 0-1000, "
-            "representing the diagram region on the page\n\n"
+            "representing the diagram region on the page. The box must tightly enclose ONLY the "
+            "diagram artwork, NOT its caption text below it and NOT surrounding text columns. "
+            "Use the layout composition (rule lines, borders, whitespace gaps) to isolate the figure "
+            "as precisely as possible.\n"
+            "- 'caption_bbox': optional bounding box [x1,y1,x2,y2] of the figure caption text "
+            "immediately below the diagram, if present (same 0-1000 scale).\n\n"
             "Be generous — include tables, graphs, charts, anatomical drawings, circuit diagrams, "
             "chemical structures, maps, flowcharts as diagrams.\n"
-            "EXCLUDE: QR codes, page headers/footers, logos, page numbers, navigation icons.\n"
+            "EXCLUDE: QR codes, page headers/footers, logos, page numbers, navigation icons, "
+            "and pure text passages.\n"
             "If there are NO diagrams on this page, return: {\"diagrams\": []}"
         )
     elif task == "full":
@@ -217,8 +223,160 @@ def _crop_diagram_regions(page_image: str, descriptions: list, output_dir: str) 
     return results
 
 
+def _refine_bbox_with_opencv(page_image: str, bbox_px: list) -> list:
+    """Refine a Gemma-provided bbox using OpenCV edge/contour analysis.
+
+    Given a rough bounding box [x1,y1,x2,y2] in pixels on the rendered page,
+    detect the diagram's outer contour inside that region and return a tighter
+    box that hugs the actual artwork (removing captions / white margins).
+    Falls back to the input bbox if OpenCV finds nothing useful.
+    """
+    import cv2
+    import numpy as np
+    try:
+        img = cv2.imread(page_image)
+        if img is None:
+            return bbox_px
+        x1, y1, x2, y2 = [int(v) for v in bbox_px]
+        h, w = img.shape[:2]
+        # Clamp to image bounds
+        x1, y1 = max(0, x1), max(0, y1)
+        x2, y2 = min(w, x2), min(h, y2)
+        if x2 - x1 < 20 or y2 - y1 < 20:
+            return bbox_px
+
+        region = img[y1:y2, x1:x2]
+        # Convert to grayscale, blur, detect edges
+        gray = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
+        gray = cv2.GaussianBlur(gray, (3, 3), 0)
+        # Adaptive threshold for printed figures (line art, tables)
+        thresh = cv2.adaptiveThreshold(
+            gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 5)
+        # Invert so ink/artwork is white (foreground)
+        thresh = cv2.bitwise_not(thresh)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if not contours:
+            return bbox_px
+
+        # Take the largest contour by area as the main diagram body
+        largest = max(contours, key=cv2.contourArea)
+        bx, by, bw, bh = cv2.boundingRect(largest)
+        # Ensure we didn't grab a tiny speck
+        if bw < 20 or bh < 20:
+            return bbox_px
+
+        # Add small padding (2% of the box) so edges are not cut
+        pad_x = max(3, int(bw * 0.02))
+        pad_y = max(3, int(bh * 0.02))
+        nx1 = x1 + max(0, bx - pad_x)
+        ny1 = y1 + max(0, by - pad_y)
+        nx2 = x1 + min(bw, bx + bw + pad_x)
+        ny2 = y1 + min(bh, by + bh + pad_y)
+        # Only accept if the refined box is reasonably sized
+        if (nx2 - nx1) < 40 or (ny2 - ny1) < 40:
+            return bbox_px
+        return [nx1, ny1, nx2, ny2]
+    except Exception:
+        return bbox_px
+
+
+def _page_layout_text(pdf_path: str, page_num: int, max_chars: int = 3000) -> str:
+    """Extract text blocks with their positions to give Gemma layout context.
+    Returns a compact layout summary like 'text at (0.1,0.2)-size ...' so the
+    model can reason about figure placement relative to the text.
+    """
+    try:
+        import fitz
+        doc = fitz.open(pdf_path)
+        page = doc[page_num]
+        pw, ph = page.rect.width, page.rect.height
+        blocks = page.get_text("dict")["blocks"]
+        lines = []
+        for blk in blocks:
+            if blk["type"] != 0:  # 0 = text block
+                continue
+            for ln in blk["lines"]:
+                x0 = blk["bbox"][0] / pw
+                y0 = blk["bbox"][1] / ph
+                x1 = blk["bbox"][2] / pw
+                y1 = blk["bbox"][3] / ph
+                text = " ".join(s["text"] for s in ln["spans"])[:80]
+                if text.strip():
+                    lines.append(f"  text@({x0:.2f},{y0:.2f})-({x1:.2f},{y1:.2f}): {text}")
+                if len("".join(lines)) > max_chars:
+                    break
+            if len("".join(lines)) > max_chars:
+                break
+        doc.close()
+        return "\n".join(lines)
+    except Exception:
+        return ""
+
+
+def _gemma_analyze_image_layout(image_path: str, page_text: str = "") -> dict:
+    """Send page image + extracted text layout to Gemma for diagram detection.
+    Uses E4B's document understanding: image + positional text layout so the
+    model can isolate figures with awareness of surrounding composition."""
+    import requests
+    with open(image_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("utf-8")
+
+    prompt = (
+        "You are a document-layout expert analyzing a textbook page. "
+        "Return ONLY valid JSON (no other text).\n"
+        "Detect every diagram, figure, chart, table, graph, or illustration on this page. "
+        "For each return:\n"
+        "- 'diagram_id': short unique id like 'fig_1', 'fig_2'\n"
+        "- 'label': figure label if visible (e.g., 'Fig. 6.1') or ''\n"
+        "- 'title': title or caption text of the figure\n"
+        "- 'description': 1-2 sentence description of what the diagram shows\n"
+        "- 'bbox': tight bounding box [x1,y1,x2,y2] in fractional 0-1000 coords that "
+        "encloses ONLY the diagram artwork (not caption, not surrounding text)\n"
+        "- 'layout_composition': one short sentence on where it sits relative to text "
+        "(e.g., 'top-right, above its caption, spans one column')\n"
+        "- 'surrounding_text_context': brief 1-sentence summary of the paragraph or "
+        "caption that references this figure, useful for later script narration\n"
+        "Use the page's text-layout below to understand composition: figures typically sit "
+        "between text blocks, above their caption, separated by whitespace or rule lines.\n"
+        "EXCLUDE: headers/footers, page numbers, logos, QR codes, pure text.\n\n"
+        f"PAGE TEXT LAYOUT (approximate positions):\n{page_text}\n\n"
+        'If no diagrams: {"diagrams": []}'
+    )
+
+    payload = {
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+            ],
+        }],
+        "max_tokens": 4096,
+        "temperature": 0.1,
+    }
+    try:
+        resp = requests.post(f"{LLAMA_HOST}/v1/chat/completions", json=payload, timeout=180)
+        if resp.status_code != 200:
+            return {"error": f"API {resp.status_code}: {resp.text[:200]}"}
+        content = resp.json()["choices"][0]["message"]["content"]
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError:
+            m = re.search(r'\{.*"diagrams".*\}', content, re.DOTALL)
+            if m:
+                try:
+                    return json.loads(m.group())
+                except json.JSONDecodeError:
+                    pass
+        return {"analysis": content}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def extract_diagrams(pdf_path: str, pdf_id: int = 0, pages: list = None,
-                     store_dir: str = None, gemma_analysis: bool = True) -> list:
+                     store_dir: str = None, gemma_analysis: bool = True,
+                     use_layout: bool = True, refine_opencv: bool = True) -> list:
     """Full extraction pipeline for one PDF.
 
     Uses Gemma vision to detect diagrams with bounding boxes, then crops
@@ -259,7 +417,14 @@ def extract_diagrams(pdf_path: str, pdf_id: int = 0, pages: list = None,
         # Step 2: Run Gemma vision to find actual diagrams with bounding boxes
         diagram_regions = []  # [{label, title, description, bbox}]
         if gemma_analysis:
-            r = _gemma_analyze_image(full_page_path, task="diagram")
+            if use_layout:
+                layout_text = _page_layout_text(pdf_path, page_num)
+                r = _gemma_analyze_image_layout(full_page_path, page_text=layout_text)
+                # If layout pass failed, fall back to plain diagram task
+                if not isinstance(r, dict) or "error" in r:
+                    r = _gemma_analyze_image(full_page_path, task="diagram")
+            else:
+                r = _gemma_analyze_image(full_page_path, task="diagram")
             if isinstance(r, dict) and "diagrams" in r:
                 diagram_regions = r["diagrams"]
                 # If diagram task found no diagrams, try "full" task as fallback
@@ -325,6 +490,10 @@ def extract_diagrams(pdf_path: str, pdf_id: int = 0, pages: list = None,
                 y2 = int(bbox[3] / 1000 * ph)
                 # Validate
                 if x2 > x1 and y2 > y1 and (x2 - x1) > 50 and (y2 - y1) > 50:
+                    # Optional: tighten the box to the actual artwork via OpenCV
+                    if refine_opencv:
+                        x1, y1, x2, y2 = _refine_bbox_with_opencv(
+                            full_page_path, [x1, y1, x2, y2])
                     crop = page_img.crop((x1, y1, x2, y2))
                     crop_w, crop_h = crop.size
                     crop_fname = f"diagram_p{page_num}_{idx}.png"
@@ -360,6 +529,14 @@ def extract_diagrams(pdf_path: str, pdf_id: int = 0, pages: list = None,
                     crop_w, crop_h = pw, ph
                     crop_bbox = json.dumps([0, 0, pw, ph])
 
+            caption_bbox = region.get("caption_bbox") if isinstance(region, dict) else None
+            meta = {
+                "diagram_id": region.get("diagram_id", ""),
+                "label": region.get("label", ""),
+                "caption_bbox": caption_bbox,
+                "layout_composition": region.get("layout_composition", ""),
+                "surrounding_text_context": region.get("surrounding_text_context", ""),
+            }
             diag = {
                 "pdf_id": pdf_id,
                 "page_number": page_num,
@@ -367,9 +544,13 @@ def extract_diagrams(pdf_path: str, pdf_id: int = 0, pages: list = None,
                 "full_page_path": shutil_path,
                 "description": description,
                 "bbox": crop_bbox,
+                "caption_bbox": json.dumps(caption_bbox) if caption_bbox else None,
                 "width": crop_w,
                 "height": crop_h,
-                "methods": json.dumps({"source": "cropped" if bbox else "full_page_render"}),
+                "methods": json.dumps({"source": "cropped" if bbox else "full_page_render",
+                                       "layout": bool(use_layout),
+                                       "opencv": bool(refine_opencv)}),
+                "metadata": json.dumps(meta),
                 "status": "analyzed",
             }
             all_diagrams.append(diag)
@@ -387,14 +568,16 @@ def extract_diagrams(pdf_path: str, pdf_id: int = 0, pages: list = None,
 
 
 def extract_and_store(pdf_path: str, pdf_id: int, db_conn=None,
-                      pages: list = None) -> list:
+                      pages: list = None, use_layout: bool = True,
+                      refine_opencv: bool = True) -> list:
     """Extract diagrams and store them in the database.
 
     Returns list of inserted diagram dicts with their DB IDs.
     Only stores diagrams that pass the intentional diagram filter
     (has numbered figure labels, substantial descriptions, etc.).
     """
-    diagrams = extract_diagrams(pdf_path, pdf_id=pdf_id, pages=pages)
+    diagrams = extract_diagrams(pdf_path, pdf_id=pdf_id, pages=pages,
+                                use_layout=use_layout, refine_opencv=refine_opencv)
 
     # Filter to only intentional diagrams before storing
     diagrams = filter_intentional_diagrams(diagrams)
@@ -404,11 +587,11 @@ def extract_and_store(pdf_path: str, pdf_id: int, db_conn=None,
             db_conn.execute(
                 """INSERT INTO pdf_diagrams
                    (pdf_id, page_number, image_path, full_page_path, description,
-                    bbox, width, height, methods, status)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    bbox, width, height, methods, metadata, status)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
                 (d["pdf_id"], d["page_number"], d["image_path"], d["full_page_path"],
                  d["description"], d["bbox"], d["width"], d["height"],
-                 d["methods"], d["status"]),
+                 d["methods"], d["metadata"], d["status"]),
             )
         db_conn.commit()
 
@@ -466,6 +649,7 @@ def build_diagram_context(diagrams: list) -> str:
     """Build a text summary of all diagrams for injecting into an LLM prompt.
 
     One entry per page on pages where Gemma detected a diagram.
+    Includes layout composition and surrounding text context when available.
     """
     parts = []
     seen_pages = set()
@@ -476,8 +660,21 @@ def build_diagram_context(diagrams: list) -> str:
             continue
         if page not in seen_pages:
             seen_pages.add(page)
+            meta = {}
+            try:
+                meta = json.loads(d.get("metadata") or "{}")
+            except (TypeError, ValueError):
+                meta = {}
+            comp = (meta.get("layout_composition") or "").strip()
+            ctx = (meta.get("surrounding_text_context") or "").strip()
             trimmed = desc[:1500].strip()
-            parts.append(f"[Textbook Diagram on page {page + 1}: {trimmed}]")
+            extra = ""
+            if comp:
+                extra += f" (layout: {comp}"
+                extra += f"; context: {ctx})" if ctx else ")"
+            elif ctx:
+                extra += f" (context: {ctx})"
+            parts.append(f"[Textbook Diagram on page {page + 1}: {trimmed}{extra}]")
     return "\n".join(parts) if parts else ""
 
 

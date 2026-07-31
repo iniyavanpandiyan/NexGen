@@ -17,7 +17,7 @@ Resilience: per-segment retry, resume (skip done), and --supervisor.
 """
 import argparse, json, os, sys, time, urllib.request, urllib.error, shutil, subprocess
 
-ROOT = "/home/fiipadmin/projects/cbse-youtube-channel"
+ROOT = "/home/fiipadmin/workspace/NexGen"
 COMFY = "http://127.0.0.1:8188"
 COMFY_OUT = "/home/fiipadmin/comfy/ComfyUI/output"
 SUPERVISOR = os.path.join(ROOT, "pipeline", "lib", "run_comfy.sh")

@@ -25,7 +25,7 @@ from lib.svg_scenes import scene_for_segment, generate_svg_scene
 VENV = "/home/fiipadmin/.hermes/hermes-agent/venv"
 EDGE_TTS = os.path.join(VENV, "bin", "edge-tts")
 PY = os.path.join(VENV, "bin", "python")
-ROOT = "/home/fiipadmin/projects/cbse-youtube-channel"
+ROOT = "/home/fiipadmin/workspace/NexGen"
 TEMPLATES_DIR = os.path.join(ROOT, "pipeline", "templates")
 
 # Default (science / Cobalt Grid) palette + fonts. Templates override these.

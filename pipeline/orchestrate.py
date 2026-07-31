@@ -10,7 +10,7 @@ RTX 3060 12GB VRAM strategy:
 """
 import argparse, json, os, subprocess, sys, time, urllib.request, urllib.error
 
-ROOT = "/home/fiipadmin/projects/cbse-youtube-channel"
+ROOT = "/home/fiipadmin/workspace/NexGen"
 LIB = os.path.join(ROOT, "pipeline", "lib")
 COMFY_URL = "http://127.0.0.1:8188"
 COMFY_DIR = "/home/fiipadmin/comfy/ComfyUI"

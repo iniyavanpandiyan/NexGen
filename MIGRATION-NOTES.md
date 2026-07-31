@@ -12,7 +12,7 @@ All data from the OpenClaw workspace has been successfully migrated to a new Her
 
 ### New Location
 ```
-/home/fiipadmin/projects/cbse-youtube-channel/
+/home/fiipadmin/workspace/NexGen/
 ```
 
 ### What Was Imported

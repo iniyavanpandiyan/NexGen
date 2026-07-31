@@ -14,7 +14,7 @@ print("model loaded. sample_rate:", model.sr)
 
 text = "Hey, this is a test of Chatterbox text to speech running locally on the RTX 3060. If you can hear this clearly, our voice pipeline is ready for the explainer videos."
 
-out_dir = "/home/fiipadmin/projects/cbse-youtube-channel/pipeline/rendered/chatterbox-test"
+out_dir = "/home/fiipadmin/workspace/NexGen/pipeline/rendered/chatterbox-test"
 os.makedirs(out_dir, exist_ok=True)
 wav_path = os.path.join(out_dir, "test.wav")
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="color-scheme" content="dark" />
-<title>CBSE Video Studio</title>
+<title>NexGen</title>
 <style>
   :root{
     --glass-bg:rgba(12,14,20,0.88);
@@ -235,7 +235,7 @@
 </head>
 <body>
 <header>
-  <h1>CBSE Video Studio</h1>
+  <h1>NexGen</h1>
   <span class="tag">glass · v2</span>
   <nav>
     <button data-v="catalog" class="active">Catalogue</button>
@@ -341,7 +341,8 @@
           <option value="openrouter">OpenRouter (cloud)</option>
           <option value="local">Local Gemma (llama.cpp)</option>
         </select>
-        <div id="llmBackendStatus" class="muted" style="font-size:11px;margin-top:8px"></div>
+        <div id="llmBackendHealth" class="muted" style="font-size:11px;margin-top:8px"></div>
+        <div id="llmBackendStatus" class="muted" style="font-size:11px;margin-top:4px"></div>
       </div>
       <div class="glass settings-card">
         <h3>Identification</h3>
@@ -466,6 +467,20 @@ async function loadSettings(){
   loadOverridePdfSelect();
   const sel=$('#llmBackendSelect');
   if(sel&&s.llm_backend)sel.value=s.llm_backend;
+  renderLlmHealth(s.llm_status||{},s.llm_backend);
+}
+function renderLlmHealth(status,backend){
+  const el=$('#llmBackendHealth');
+  if(!el)return;
+  if(!status||typeof status!=='object'){el.innerHTML='';return;}
+  const ok=status.ok;
+  const label=ok?'Healthy':'Unavailable';
+  const color=ok?'var(--ok)':'var(--bad)';
+  let detail='';
+  if(status.url)detail=`<span class="muted"> — ${status.url}</span>`;
+  if(status.error)detail=`<span class="muted" style="color:var(--bad)"> — ${status.error}</span>`;
+  if(status.provider)detail=`<span class="muted"> — ${status.provider}</span>`;
+  el.innerHTML=`<span style="color:${color}">● ${label}</span>${detail}`;
 }
 async function setLlmBackend(v){
   const r=await api('/api/settings/llm-backend','POST',{backend:v});

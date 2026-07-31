@@ -109,7 +109,7 @@ def run(conn):
 
 if __name__ == "__main__":
     import sys
-    sys.path.insert(0, "/home/fiipadmin/projects/cbse-youtube-channel/webapp/backend")
+    sys.path.insert(0, "/home/fiipadmin/workspace/NexGen/webapp/backend")
     from db import get_conn
     conn = get_conn()
     result = run(conn)
