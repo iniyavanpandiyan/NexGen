@@ -192,12 +192,19 @@ KNOWN_CHAPTERS: dict[str, dict[int, str]] = {
         9: "The Proposal",
     },
     "class-10-health-and-physical-education": {
-        1: "Physical Education: Relationship with Other Subjects",
-        2: "Organ Systems for Movement of Body and Limbs",
-        3: "Physical Activity and Human Body — Biological Changes in Human Life Cycle",
-        4: "Physical Activity and Human Body — Track and Field Events",
-        5: "Sports and Its Role in Personality Development",
-        6: "Physical Activity and Human Body — Test, Measurement and Evaluation",
+        1: "Physical Education: Relationship with other Subjects",
+        2: "Effects of Physical Activities on Human Body",
+        3: "Growth and Development during Adolescence",
+        4: "Individual Games and Sports I",
+        5: "Individual Games and Sports II",
+        6: "Team Games and Sports I",
+        7: "Team Games and Sports II",
+        8: "Yoga for Healthy Living",
+        9: "Dietary Considerations and Food Quality",
+        10: "Safety Measures for Healthy Living",
+        11: "Healthy Community Living",
+        12: "Social Health",
+        13: "Agencies and Awards Promoting Health, Sports and Yoga",
     },
     "class-9-english": {
         1: "Reflect and Respond",
@@ -319,6 +326,319 @@ def known_chapter_name(path: str, ch_num: int | None) -> str | None:
     if mapping and ch_num in mapping:
         return mapping[ch_num]
     return None
+
+
+# ---------------------------------------------------------------------------
+# Shared name-normalization / page-header detection
+# (also used by main.py's per-page aggregation)
+# ---------------------------------------------------------------------------
+def normalize_chapter_name(name: str) -> str:
+    """Lowercase and collapse whitespace so OCR spelling variants of the
+    same title count as one ('Effects of Physical activities on human Body'
+    and 'Effects of Physical Activities on Human Body' both become one key)."""
+    name = re.sub(r"\s+([:;,])", r"\1", name)  # 'INDIA : PHYSICAL' -> 'INDIA: PHYSICAL'
+    return re.sub(r"\s+", " ", name.strip().lower())
+
+
+def looks_like_page_header(name: str) -> bool:
+    """True if the candidate is a book running header (subject title + class)
+    rather than a chapter title — e.g. 'Health and Physical Education - Class X'."""
+    low = normalize_chapter_name(name)
+    if len(low) < 10:
+        return False
+    # Rotated headers render glyph-spaced ('H ealth and P hysical ...'); test
+    # both the raw form and the de-spaced form so we catch them.
+    compact = re.sub(r"\s+", "", low)
+    lows = (low, compact)
+    if any(re.search(r"class\s*[ivxlcdm]+\s*$", x) for x in lows):
+        return True
+    if any(re.search(r"[-–—]\s*class\s*[ivxlcdm]+", x) for x in lows):
+        return True
+    if any(re.search(r"(?:health|science|mathematics|maths|social\s*science|english|hindi)\s*and\s*", x) for x in lows):
+        return True
+    # A bare subject name ('mathematics', 'science') is a book header, not a
+    # chapter title. Only reject exact/subject-only matches so real chapter
+    # titles like 'Mathematics in Everyday Life' are not dropped.
+    if any(re.fullmatch(r"(?:mathematics|maths|science|social\s*science|health\s*and\s*physical\s*education|english|hindi|sanskrit)", x) for x in lows):
+        return True
+    return False
+
+
+def _is_book_header(name: str) -> bool:
+    """True if the candidate is a book/subject-level running header rather than
+    a chapter title. NCERT books print the subject or book title at the top of
+    every page (e.g. 'Physics', 'MATHEMATICS', 'THEMES IN WORLD HISTORY'),
+    which repeats identically across every chapter and is not a chapter title."""
+    low = normalize_chapter_name(name)
+    compact = re.sub(r"\s+", "", low)
+    lows = (low, compact)
+    if any(re.fullmatch(r"(physics|chemistry|biology|mathematics|maths|science|geography|history|english|hindi|sanskrit|urdu|social science|physical education)", x) for x in lows):
+        return True
+    # Whole-book series titles that are printed on every page. Compare in
+    # compacted form too, since headers render as 'INDIA : PHYSICAL
+    # ENVIRONMENT' with a space before the colon.
+    book_titles = [
+        "themesinworldhistory",
+        "themesinindianhistory",
+        "fundamentalsofphysicalgeography",
+        "india:physicalenvironment",
+        "indiaphysicalenvironment",
+        "contemporaryworldpolitics",
+        "indianeconomicdevelopment",
+        "introductorymacroeconomics",
+        "statisticsforeconomics",
+    ]
+    for bt in book_titles:
+        if any(bt in x for x in lows):
+            return True
+    return False
+
+
+# Cache of per-directory shared (book-level) header names, computed lazily.
+_book_header_cache: dict[str, set[str]] = {}
+
+def _shared_book_headers(path: str) -> set[str]:
+    """Return normalized header strings that appear identically in multiple
+    chapter files of the same book directory. A running header that repeats
+    across chapters is the book title (e.g. 'Kaveri', 'Madhurima'), not a
+    chapter title, so it must not be returned as a chapter name."""
+    import glob as _glob
+
+    directory = os.path.dirname(os.path.abspath(path))
+    if directory in _book_header_cache:
+        return _book_header_cache[directory]
+
+    winners: dict[str, list[str]] = {}
+    for sibling in _glob.glob(os.path.join(directory, "*.pdf")):
+        winner = _page_header_winner(sibling)
+        if winner is None:
+            continue
+        winners.setdefault(normalize_chapter_name(winner), []).append(winner)
+
+    shared: set[str] = set()
+    for norm, titles in winners.items():
+        if len(titles) >= 2:
+            shared.add(norm)
+    _book_header_cache[directory] = shared
+    return shared
+
+
+def _page_header_winner(path: str, skip_normalized: str | None = None) -> str | None:
+    """Scan a single PDF's running headers and return the majority title, or
+    None. Lower-level helper used for shared-header detection; does not apply
+    the shared-header exclusion itself. If ``skip_normalized`` is given, that
+    normalized title is excluded from the vote (used to demote a book title)."""
+    try:
+        import fitz
+    except ImportError:
+        return None
+    try:
+        doc = fitz.open(path)
+    except Exception:
+        return None
+    total = len(doc)
+    if total == 0:
+        doc.close()
+        return None
+
+    candidates = []
+    for pg in range(total):
+        try:
+            page = doc[pg]
+            pw, ph = page.rect.width, page.rect.height
+            # Books rendered through legacy non-Latin fonts (e.g. Devanagari
+            # via 'Chanakya') have a garbage Latin text layer — skip the whole
+            # page so the vision strategy handles the script properly.
+            page_fonts = [f[3] for f in page.get_fonts()]
+            if any(_is_nonlatin_font(f) for f in page_fonts):
+                continue
+            blocks = page.get_text("blocks")
+        except Exception:
+            continue
+        if not blocks:
+            continue
+        margin_blocks = []
+        top_blocks = []
+        for blk in blocks:
+            x0, y0, x1, y1, text = blk[0], blk[1], blk[2], blk[3], (blk[4] or "")
+            raw = re.sub(r"\s+", " ", text.strip())
+            if len(raw) < 4:
+                continue
+            in_top = y1 < 0.14 * ph
+            in_left_margin = x1 < 0.18 * pw
+            in_right_margin = x0 > 0.82 * pw
+            if in_left_margin or in_right_margin:
+                margin_blocks.append((y0, y1, raw))
+            elif in_top:
+                top_blocks.append((y0, y1, raw))
+
+        def _first_header(region_blocks):
+            """Return the filtered top-most header candidate for a region, or
+            None. Merges consecutive blocks that share one header line."""
+            if not region_blocks:
+                return None
+            region_blocks.sort()
+            merged = []
+            for y0, y1, raw in region_blocks:
+                if merged and y0 - merged[-1][0] < 4:
+                    prev_y1, prev = merged[-1]
+                    merged[-1] = (max(prev_y1, y1), prev + " " + raw)
+                else:
+                    merged.append((y1, raw))
+            cand = merged[0][1]
+            cand = re.sub(r"\s+", " ", cand)
+            if len(cand) < 6:
+                return None
+            cand = re.sub(r"^\s*\d+\s*[|\-–—•]?\s*", "", cand)
+            cand = re.sub(r"\s*[|\-–—•]?\s*\d+\s*$", "", cand)
+            if len(cand) < 6:
+                return None
+            if re.search(r"\d{4}\s*-\s*\d{2}$", cand) or "Reprint" in cand:
+                return None
+            if _is_callout(cand):
+                return None
+            cand = cand.rstrip(".,;:")
+            if not re.search(r"[A-Za-z]{2,}", cand):
+                return None
+            if looks_like_page_header(cand) or _is_book_header(cand):
+                return None
+            if _looks_garbled(cand):
+                return None
+            return cand
+
+        # Prefer the vertical (rotated) margin header — in HPE books that is
+        # the chapter running title printed down the page edge, while the top
+        # band holds section headings that repeat on every page. Fall back to
+        # the top band only when there is no valid margin header.
+        cand = _first_header(margin_blocks)
+        if cand is None:
+            cand = _first_header(top_blocks)
+        if cand is None:
+            continue
+        if skip_normalized and normalize_chapter_name(cand) == skip_normalized:
+            continue
+        candidates.append(cand)
+
+    doc.close()
+    if not candidates:
+        return None
+
+    from collections import Counter
+    counts: Counter = Counter()
+    longest = {}
+    for c in candidates:
+        norm = normalize_chapter_name(c)
+        counts[norm] += 1
+        if len(c) > len(longest.get(norm, "")):
+            longest[norm] = c
+    best_norm, best_count = counts.most_common(1)[0]
+    if best_count < max(2, total // 4):
+        return None
+    return longest[best_norm]
+
+
+def running_header_chapter_name(path: str) -> dict | None:
+    """Determine the chapter title from the page running headers.
+
+    NCERT textbooks print the chapter title at the top of each content page
+    (the running header). This is deterministic — it reads the document
+    directly instead of trusting a curated map. Works even when the title is
+    rendered as an image (not extractable by pypdf) because we use fitz on
+    the text layer; for image-only headers we fall back to other strategies.
+
+    Returns {chapter_number, chapter_name, start_page, method: 'header'}
+    or None if no confident running-header title can be found.
+    """
+    ch_num_from_file = chapter_from_filename(path)
+
+    # Majority title from this document's running headers.
+    winner = _page_header_winner(path)
+    if winner is None:
+        return None
+
+    # A header that repeats across chapters is the book title, not the chapter
+    # title — e.g. 'Kaveri' or 'Madhurima' printed on every page. When that
+    # happens, return the strongest chapter-level candidate instead.
+    shared = _shared_book_headers(path)
+    if normalize_chapter_name(winner) in shared:
+        fallback = _page_header_winner(path, skip_normalized=normalize_chapter_name(winner))
+        if fallback is None:
+            return None
+        winner = fallback
+
+    title = _despace_glyph_title(winner)
+    return {
+        "chapter_number": ch_num_from_file or 0,
+        "chapter_name": title,
+        "start_page": 1,
+        "method": "header",
+    }
+
+
+def _is_nonlatin_font(font_name: str) -> bool:
+    """True if a font is a legacy non-Latin script font whose text layer maps
+    glyphs to Latin letters (e.g. Devanagari via 'Walkman-Chanakya905')."""
+    low = (font_name or "").lower()
+    nonlatin_hints = [
+        "chanakya", "nirmala", "kokila", "mangal", "lohit", "aparajita",
+        "gargi", "utsaah", "tunga", "vrinda", "gautami", "shruti", "devanagari",
+    ]
+    return any(h in low for h in nonlatin_hints)
+
+
+def _looks_garbled(name: str) -> bool:
+    """True if a header decodes to non-Latin garbage rather than a real title.
+
+    Some NCERT books embed Devanagari through legacy non-Unicode fonts (e.g.
+    'Walkman-Chanakya905'), whose text layer maps glyphs to Latin letters. The
+    result looks like English but is not ('lkuk&lkuk gkFk tksfM+---'). These
+    should not be returned as chapter titles — the vision strategy reads the
+    rendered page and handles the script properly."""
+    low = normalize_chapter_name(name)
+    compact = re.sub(r"[^a-z]", "", low)
+    if len(compact) < 6:
+        return False
+    # Legacy Devanagari fonts litter titles with punctuation and shell-style
+    # characters that never appear in real Latin titles.
+    suspicious = re.findall(r"[{}\[\]+`\"'=@#$%^*<>~\\/|]", low)
+    if len(suspicious) >= 1:
+        return True
+    # Mixed lower+upper with no real capitalization pattern, e.g. 'gkFk'.
+    if re.search(r"\b[a-z]+[A-Z][a-z]+\b", name):
+        return True
+    return False
+
+
+def _is_callout(name: str) -> bool:
+    """True if the candidate is a common box/sidebar label, not a title."""
+    low = re.sub(r"\s+", "", normalize_chapter_name(name))
+    callouts = [
+        "doyouknow", "moretoknow", "thinkitover", "activity", "didyouknow",
+        "remember", "note", "important", "let'sdo", "letsdo", "experiment",
+        "doyouknow?", "amazingfact", "wordscareful", "keywords", "note",
+    ]
+    for c in callouts:
+        if low.startswith(c) or low == c:
+            return True
+    return False
+
+
+def _despace_glyph_title(name: str) -> str:
+    """Collapse the wide letter-spacing of rotated running headers.
+
+    Rotated PDF text renders as 'E ffects of P hysical A ctivities', with a
+    single letter separated from the rest of each word. Re-join those so the
+    final chapter name is clean: 'Effects of Physical Activities'."""
+    if not name:
+        return name
+    # Remove spaces between a single letter and a following word chunk that
+    # continues in lowercase (glyph spacing): 'E ffects' -> 'Effects',
+    # 'P hysical' -> 'Physical', 'I ndividual' -> 'Individual'. Words that
+    # legitimately start with a capital (e.g. 'a System') are left alone.
+    fixed = re.sub(r"\b([A-Za-z])\s(?=[a-z]{2,}\b)", r"\1", name)
+    fixed = re.sub(r"\s+([:;,.])\s*", r"\1 ", fixed)
+    fixed = re.sub(r"\s{2,}", " ", fixed).strip()
+    return fixed
 
 # ---------------------------------------------------------------------------
 # Chapter number from filename (fallback)
@@ -444,7 +764,21 @@ def extract_chapter(path: str) -> dict | None:
 
     ch_num_from_file = chapter_from_filename(path)
 
-    # Strategy 1: Known chapter name (curated, always correct)
+    # Strategy 1: Running-header title read directly from the document.
+    # This is the most authoritative source — the chapter title is printed at
+    # the top of every content page. Curated maps can go stale, but the
+    # printed header cannot.
+    header_result = running_header_chapter_name(path)
+    if header_result:
+        # If the header title matches a curated known-map title
+        # (case-insensitively), keep the curated casing for consistency
+        # (e.g. headers render all-caps, maps store title case).
+        known = known_chapter_name(path, header_result.get("chapter_number") or ch_num_from_file)
+        if known and normalize_chapter_name(known) == normalize_chapter_name(header_result["chapter_name"]):
+            header_result["chapter_name"] = known
+        return header_result
+
+    # Strategy 2: Known chapter name (curated fallback)
     known = known_chapter_name(path, ch_num_from_file)
     if known:
         return {
@@ -454,7 +788,7 @@ def extract_chapter(path: str) -> dict | None:
             "method": "known",
         }
 
-    # Strategy 2: Gemma vision on first page (accurate for unknown books)
+    # Strategy 3: Gemma vision on first page (accurate for unknown books)
     vision_result = vision_chapter_extract(path)
     if vision_result:
         return vision_result

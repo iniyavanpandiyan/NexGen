@@ -189,10 +189,10 @@ def _synthesize_all_pages(all_pages: list, pdf_title: str, pdf_class: str, pdf_s
         if "error" in p:
             continue
         page_summaries.append(
-            f"Page {p.get('page_number', 0) + 1}: {p.get('summary', '')[:500]} | "
-            f"Type: {p.get('page_type', 'content')} | "
+            f"Page {p.get('page_number', 0) + 1}: {str(p.get('summary', ''))[:500]} | "
+            f"Type: {str(p.get('page_type', 'content'))} | "
             f"Diagrams: {len(p.get('diagrams', []))} | "
-            f"Key concepts: {', '.join(p.get('key_concepts', [])[:5])}"
+            f"Key concepts: {', '.join(str(x) for x in (p.get('key_concepts') or [])[:5])}"
         )
 
     summaries_text = "\n".join(page_summaries[:200])  # cap at 200 pages

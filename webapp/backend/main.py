@@ -251,7 +251,7 @@ def catalog(class_filter: str = Query(None), subject: str = Query(None),
     where, params = [], []
     if class_filter: where.append("p.class=?"); params.append(class_filter)
     if subject: where.append("p.subject=?"); params.append(subject)
-    if q: where.append("(p.chapter_name LIKE ? OR p.title LIKE ? OR p.path LIKE ?)"); params += [f"%{q}%", f"%{q}%", f"%{q}%"]
+    if q: where.append("(CAST(p.id AS TEXT) LIKE ? OR p.chapter_name LIKE ? OR p.title LIKE ? OR p.path LIKE ?)"); params += [f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"]
     wc = ("WHERE " + " AND ".join(where)) if where else ""
     rows = conn.execute(
         f"""SELECT p.*,
@@ -687,7 +687,7 @@ def pdf_comprehensive_analyze(pid: int, body: dict = {}):
                 # Prefer the existing document-derived chapter name. The LLM
                 # synthesis may paraphrase, so only fall back to it when the
                 # current name is empty or placeholder-like.
-                existing = (r.get("chapter_name") or "").rstrip(':;, ')
+                existing = (dict(r).get("chapter_name") or "").rstrip(':;, ')
                 existing_ok = _chapter_name_ok(existing)
                 if not existing_ok and syn.get("chapter_name"):
                     ch_name = syn["chapter_name"][:200].rstrip(':;, ')
@@ -895,6 +895,26 @@ def identify_pdf(pid: int):
     }
 
 
+@app.post("/api/pdfs/{pid}/extract")
+def pdf_extract(pid: int):
+    """Non-destructive full extraction pipeline for a single PDF:
+    text/OCR -> diagrams -> diagram labeling -> comprehensive page analysis.
+    Runs in background with task progress. Does NOT clear chapter metadata.
+    """
+    path = pdf_path(pid)
+    if not path:
+        raise HTTPException(404, "pdf not found")
+
+    task_id = spawn(lambda tid: _extract_full(pid, path, tid), "Extract PDF #" + str(pid))
+
+    return {
+        "ok": True,
+        "task_id": task_id,
+        "pdf_id": pid,
+        "note": "Full extraction started in background. Poll /api/tasks/" + task_id,
+    }
+
+
 def _chapter_name_ok(name: str) -> bool:
     """Return True if a chapter name looks like real document data
     (not a placeholder, empty, or numbered-only string)."""
@@ -918,6 +938,9 @@ def _aggregate_document_chapter_name(pdf_id: int, db_conn=None) -> str:
     Each page of the comprehensive pass records the chapter title exactly as
     printed on that page. Aggregating them — most-frequent-wins, ties broken
     by longest name — gives maximum accuracy with zero LLM invention.
+    Names are case-normalized before counting because OCR renders the title
+    differently per page (e.g. 'Effects of Physical activities on human Body');
+    a repeated book running header is excluded as page-header noise.
     Returns '' if no usable per-page names exist.
     """
     own = db_conn is None
@@ -940,18 +963,46 @@ def _aggregate_document_chapter_name(pdf_id: int, db_conn=None) -> str:
             if not ctx or not isinstance(ctx, str):
                 continue
             name = ctx.strip().rstrip(':;, ')
-            if _chapter_name_ok(name):
-                counts[name] += 1
-                if len(name) > len(longest.get(name, "")):
-                    longest[name] = name
+            if not _chapter_name_ok(name):
+                continue
+            if _looks_like_page_header(name):
+                continue
+            norm = _normalize_chapter_name(name)
+            counts[norm] += 1
+            if len(name) > len(longest.get(norm, "")):
+                longest[norm] = name
         if not counts:
             return ""
         # Most frequent first; ties → longest name
-        best = max(counts.items(), key=lambda kv: (kv[1], len(kv[0])))
-        return best[0]
+        best_norm = max(counts.items(), key=lambda kv: (kv[1], len(kv[0])))[0]
+        return longest.get(best_norm, best_norm)
     finally:
         if own:
             db_conn.close()
+
+
+def _normalize_chapter_name(name: str) -> str:
+    """Lowercase and collapse whitespace so OCR spelling variants of the
+    same title count as one ('Effects of Physical activities on human Body'
+    and 'Effects of Physical Activities on Human Body' both become one key)."""
+    return re.sub(r"\s+", " ", name.strip().lower())
+
+
+def _looks_like_page_header(name: str) -> bool:
+    """True if the per-page context is a book running header (subject title
+    + class) rather than the chapter title. Gemma often returns the header
+    like 'Health and Physical Education - Class X' as chapter_context."""
+    low = _normalize_chapter_name(name)
+    if len(low) < 10:
+        return False
+    # Running headers usually contain a subject name + '- class x'/'class x'.
+    if re.search(r"class\s+[ivxlcdm]+\s*$", low):
+        return True
+    if re.search(r"[-–—]\s*class\s+[ivxlcdm]+", low):
+        return True
+    if re.search(r"(?:health|science|mathematics|maths|social\s+science|english|hindi)\s+and\s+", low):
+        return True
+    return False
 
 
 def _identify_fresh(pid: int, path: str, task_id: str = ""):
@@ -1120,6 +1171,130 @@ def _identify_fresh(pid: int, path: str, task_id: str = ""):
         log.error(f"[identify #{pid}] Fresh identification failed: {e}")
 
 
+def _extract_full(pid: int, path: str, task_id: str = ""):
+    """Non-destructive full extraction pipeline: text/OCR -> diagrams ->
+    diagram labeling -> comprehensive page analysis. Runs in background with
+    task progress. Does NOT clear or overwrite chapter metadata.
+    """
+    try:
+        # Clear previously derived artifacts so re-running Extract is idempotent.
+        # Chapter metadata (name/number) is intentionally left untouched.
+        conn_clear = db.get_conn()
+        conn_clear.execute("DELETE FROM pdf_diagrams WHERE pdf_id=?", (pid,))
+        conn_clear.execute("DELETE FROM pdf_comprehensive WHERE pdf_id=?", (pid,))
+        conn_clear.commit()
+        conn_clear.close()
+
+        # Step 1: Text extraction (hybrid/OCR)
+        if task_id:
+            _update_task(task_id, "running", f"PDF #{pid}: extracting text...", 1, 4)
+        try:
+            from pipeline.lib.text_extractor import extract as _ocr_extract
+            ocr_result = _ocr_extract(path, dpi=150)
+            ocr_text = ocr_result.get("text", "")
+            ocr_method = ocr_result.get("method", "pypdf")
+            if ocr_text:
+                conn_ocr = db.get_conn()
+                preview = ocr_text[:16000]
+                conn_ocr.execute("UPDATE pdfs SET text_preview=? WHERE id=?", (preview, pid))
+                conn_ocr.execute(
+                    "INSERT OR REPLACE INTO pdf_text (pdf_id, raw_text, method, pages, updated_at) "
+                    "VALUES (?, ?, ?, ?, strftime('%s','now'))",
+                    (pid, ocr_text, ocr_method, ocr_result.get("pages", 0)),
+                )
+                conn_ocr.commit()
+                conn_ocr.close()
+                log.info(f"[extract #{pid}] Text extracted: {len(ocr_text)} chars (method={ocr_method})")
+        except Exception as e:
+            log.warning(f"[extract #{pid}] Text extraction failed: {e}")
+
+        # Step 2: Extract diagrams (caption-anchored / Gemma fallback)
+        if task_id:
+            _update_task(task_id, "running", f"PDF #{pid}: extracting diagrams...", 2, 4)
+        try:
+            from pipeline.lib.pdf_diagram_extractor import extract_and_store
+            conn_diag = db.get_conn()
+            extract_and_store(path, pid, db_conn=conn_diag)
+            conn_diag.close()
+            log.info(f"[extract #{pid}] Diagram extraction complete")
+        except Exception as e:
+            log.warning(f"[extract #{pid}] Diagram extraction failed: {e}")
+
+        # Step 3: Comprehensive page-by-page analysis (uses semaphore)
+        if task_id:
+            _update_task(task_id, "running", f"PDF #{pid}: analyzing pages...", 3, 4)
+        acquired = PROCESS_SEM.acquire(blocking=False)
+        if acquired:
+            try:
+                from pipeline.lib.comprehensive_pipeline import analyze_pdf_comprehensive_batched
+                conn2 = db.get_conn()
+                r2 = conn2.execute("SELECT title, class, subject FROM pdfs WHERE id=?", (pid,)).fetchone()
+                comp_result = analyze_pdf_comprehensive_batched(
+                    path, pdf_id=pid,
+                    pdf_title=r2["title"] if r2 else "",
+                    pdf_class=r2["class"] if r2 else "",
+                    pdf_subject=r2["subject"] if r2 else "",
+                    db_conn=conn2,
+                )
+                conn2.close()
+                log.info(f"[extract #{pid}] Comprehensive analysis complete")
+            finally:
+                PROCESS_SEM.release()
+        else:
+            log.info(f"[extract #{pid}] Skipping comprehensive (semaphore busy)")
+
+        # Step 4: Vision label diagrams lacking descriptions (uses page context)
+        if task_id:
+            _update_task(task_id, "running", f"PDF #{pid}: labeling diagrams...", 4, 4)
+        try:
+            from pipeline.lib.vision_processor import analyze_page
+            conn4 = db.get_conn()
+            diags = conn4.execute(
+                "SELECT id, image_path, page_number FROM pdf_diagrams WHERE pdf_id=? AND (description IS NULL OR description = '' OR description LIKE 'No diagram%')",
+                (pid,),
+            ).fetchall()
+            page_contexts = {}
+            comp_rows = conn4.execute(
+                "SELECT page_number, result_json FROM pdf_comprehensive WHERE pdf_id=?", (pid,)
+            ).fetchall()
+            for cr in comp_rows:
+                try:
+                    data = json.loads(cr["result_json"])
+                    parts = []
+                    if data.get("summary"): parts.append(f"Page summary: {data['summary']}")
+                    if data.get("key_concepts"): parts.append(f"Key concepts: {', '.join(data['key_concepts'][:5])}")
+                    if data.get("page_type"): parts.append(f"Page type: {data['page_type']}")
+                    if data.get("chapter_context"): parts.append(f"Chapter context: {data['chapter_context']}")
+                    if parts: page_contexts[cr["page_number"]] = " | ".join(parts)
+                except Exception:
+                    pass
+            conn4.close()
+            for d in diags:
+                if not d["image_path"] or not os.path.exists(d["image_path"]):
+                    continue
+                try:
+                    ctx = page_contexts.get(d["page_number"], "")
+                    result = analyze_page(d["image_path"], task="full", context_prefix=ctx)
+                    if "error" not in result:
+                        desc = result.get("analysis", "")
+                        conn5 = db.get_conn()
+                        conn5.execute("UPDATE pdf_diagrams SET description=?, status=? WHERE id=?",
+                                     (desc, "analyzed", d["id"]))
+                        conn5.commit()
+                        conn5.close()
+                except Exception:
+                    pass
+            log.info(f"[extract #{pid}] Diagram labeling complete")
+        except Exception as e:
+            log.warning(f"[extract #{pid}] Diagram labeling failed: {e}")
+
+        if task_id:
+            _update_task(task_id, "done", f"PDF #{pid}: full extraction complete", 4, 4)
+        log.info(f"[extract #{pid}] Full extraction complete")
+    except Exception as e:
+        log.error(f"[extract #{pid}] Full extraction failed: {e}")
+
+
 def _identify_diagrams_only(pid: int, path: str):
     """Extract diagrams only (skipping TOC and comprehensive). Safe to call without semaphore."""
     try:
@@ -1207,7 +1382,8 @@ def reset_all_metadata():
     conn.execute("DELETE FROM feedback")
     conn.execute("DELETE FROM versions")
     conn.execute("DELETE FROM videos")
-    conn.execute("UPDATE pdfs SET chapter_name=NULL, chapter_number=NULL, identified_method='none'")
+    conn.execute("DELETE FROM pdf_text")
+    conn.execute("UPDATE pdfs SET chapter_name=NULL, chapter_number=NULL, identified_method='none', text_preview=NULL")
     conn.commit()
     conn.close()
     log.info("[reset] All metadata and queue wiped")
@@ -1258,7 +1434,6 @@ def reset_all_metadata():
     }
 
 
-@app.post("/api/identify-all")
 @app.post("/api/identify-all")
 def identify_all_pdfs():
     """Run fresh identification for ALL PDFs (even those already identified).
@@ -1410,6 +1585,37 @@ def batch_identify_pdfs(body: dict = {}):
         _update_task(tid, "done", f"Done — {completed}/{total} PDFs identified", completed, total)
 
     task_id = spawn(_run, "Batch identify")
+    return {"ok": True, "task_id": task_id, "total": len(pdf_ids)}
+
+
+@app.post("/api/batch/pdfs/extract")
+def batch_extract_pdfs(body: dict = {}):
+    """Batch full non-destructive extraction for selected PDFs: text/OCR ->
+    diagrams -> diagram labeling -> comprehensive page analysis.
+    Accepts {pdf_ids: [1,2,3]}. Returns task_id.
+    """
+    pdf_ids = body.get("pdf_ids", [])
+    if not pdf_ids:
+        raise HTTPException(400, "No pdf_ids provided")
+
+    def _run(tid=None):
+        total = len(pdf_ids)
+        _update_task(tid, "running", f"0/{total} PDFs extracted", 0, total)
+        completed = 0
+        for pid in pdf_ids:
+            try:
+                path = pdf_path(pid)
+                if path:
+                    _extract_full(pid, path)
+                completed += 1
+                _update_task(tid, "running", f"{completed}/{total} PDFs extracted", completed, total)
+            except Exception as e:
+                log.warning(f"[batch-extract #{pid}] Failed: {e}")
+                completed += 1
+                _update_task(tid, "running", f"{completed}/{total} (error: {str(e)[:60]})", completed, total)
+        _update_task(tid, "done", f"Done — extracted {completed}/{total} PDFs", completed, total)
+
+    task_id = spawn(_run, "Batch extract PDFs")
     return {"ok": True, "task_id": task_id, "total": len(pdf_ids)}
 
 
@@ -1617,33 +1823,31 @@ def pdf_details(pid: int):
 
     conn.close()
 
-    # Text preview — check pdf_text table first (populated by identify/OCR), fallback to fast pypdf
-    text_preview = pdf.get("text_preview") or ""
-    text_source = "cached"
+    # Text preview — pdf_text is the single source of truth; text_preview column is a sync'd cache
+    text_preview = ""
+    text_source = "none"
+    try:
+        conn_t = db.get_conn()
+        r_t = conn_t.execute(
+            "SELECT raw_text, method FROM pdf_text WHERE pdf_id=? ORDER BY updated_at DESC LIMIT 1",
+            (pid,)
+        ).fetchone()
+        if r_t and r_t["raw_text"]:
+            text_preview = r_t["raw_text"][:4000]
+            text_source = r_t["method"]
+        conn_t.close()
+    except Exception:
+        pass
+
     if text_preview:
-        # Try to get the source method from pdf_text table
+        # Keep the cached preview column in sync
         try:
-            conn_src = db.get_conn()
-            r_src = conn_src.execute(
-                "SELECT method FROM pdf_text WHERE pdf_id=? ORDER BY updated_at DESC LIMIT 1",
-                (pid,)
-            ).fetchone()
-            if r_src:
-                text_source = r_src["method"]
-            conn_src.close()
-        except Exception:
-            pass
-    if not text_preview:
-        try:
-            conn2 = db.get_conn()
-            r2 = conn2.execute(
-                "SELECT raw_text, method FROM pdf_text WHERE pdf_id=? ORDER BY updated_at DESC LIMIT 1",
-                (pid,)
-            ).fetchone()
-            if r2 and r2["raw_text"]:
-                text_preview = r2["raw_text"][:4000]
-                text_source = r2["method"]
-            conn2.close()
+            conn_s = db.get_conn()
+            cur = conn_s.execute("SELECT text_preview FROM pdfs WHERE id=?", (pid,)).fetchone()
+            if not cur or cur["text_preview"] != text_preview:
+                conn_s.execute("UPDATE pdfs SET text_preview=? WHERE id=?", (text_preview, pid))
+                conn_s.commit()
+            conn_s.close()
         except Exception:
             pass
 
@@ -1685,6 +1889,83 @@ def pdf_details(pid: int):
         "text_source": text_source,
         "video_count": video_count,
     }
+
+
+@app.get("/api/pdfs/{pid}/pages")
+def pdf_pages(pid: int, offset: int = 0, limit: int = 2):
+    """Return extracted text one page at a time (paginated, lazy).
+
+    Extracts each page's text from the native text layer (exact page
+    boundaries; the watermark is raster-only and never pollutes the text),
+    returning only the requested slice so the accordion loads incrementally.
+    """
+    path = pdf_path(pid)
+    if not path:
+        raise HTTPException(404, "pdf not found")
+    offset = max(0, offset)
+    limit = max(1, min(limit, 20))
+
+    conn = db.get_conn()
+    conn.row_factory = sqlite3.Row
+    r = conn.execute(
+        "SELECT raw_text, method, pages FROM pdf_text WHERE pdf_id=? ORDER BY updated_at DESC LIMIT 1",
+        (pid,),
+    ).fetchone()
+    conn.close()
+
+    # Prefer live per-page extraction from the native text layer: page
+    # boundaries are exact and the watermark is raster-only (never in text).
+    try:
+        import fitz
+        doc = fitz.open(path)
+        chunks = [doc[p].get_text().strip() for p in range(len(doc))]
+        doc.close()
+        total = len(chunks)
+        per_page = True
+        method = "fitz"
+    except Exception:
+        chunks, per_page, method = [], False, "ocr"
+
+    if not chunks:
+        # Fallback: stored raw_text (continuous OCR) split by page count
+        total = r["pages"] if r and r["pages"] else 0
+        if r and r["raw_text"]:
+            chunks = _split_into_pages(r["raw_text"], total)
+            method = r["method"] or "ocr"
+
+    end = min(offset + limit, total)
+    items = []
+    for pno in range(offset, end):
+        items.append({
+            "page": pno + 1,
+            "text": chunks[pno] if pno < len(chunks) else "",
+            "per_page": per_page,
+        })
+    return {
+        "pdf_id": pid,
+        "total_pages": total,
+        "offset": offset,
+        "limit": limit,
+        "per_page": per_page,
+        "method": method,
+        "pages": items,
+    }
+
+
+def _split_into_pages(raw: str, total: int) -> list:
+    """Split continuous text into `total` chunks proportional to character count."""
+    raw = (raw or "").strip()
+    if total <= 0:
+        return [raw] if raw else [""]
+    if not raw:
+        return [""] * total
+    step = max(1, len(raw) // total)
+    chunks = []
+    for i in range(total):
+        s = i * step
+        e = len(raw) if i == total - 1 else min(len(raw), (i + 1) * step)
+        chunks.append(raw[s:e].strip())
+    return chunks
 
 
 @app.post("/api/diagrams/{did}/analyze")

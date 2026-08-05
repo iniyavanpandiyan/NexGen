@@ -252,7 +252,7 @@
   <section class="view active" id="catalog">
     <h2>PDF Catalogue <span class="stat" id="catTotal"></span></h2>
     <div class="row" style="margin-bottom:14px;flex-wrap:wrap;gap:6px">
-      <input id="catSearch" placeholder="search chapter title…" style="max-width:260px">
+      <input id="catSearch" placeholder="search id, title, chapter…" style="max-width:260px">
       <button class="btn sm" onclick="loadCatalog()">Search</button>
       <button class="btn ghost sm" onclick="rescanAndReset()">↻ Reset &amp; Re-scan</button>
       <span style="flex:1"></span>
@@ -377,8 +377,7 @@
   <span class="sep">|</span>
   <div class="actions">
     <button class="btn sm ghost" onclick="batchAction('identify')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Identify</button>
-    <button class="btn sm ghost" onclick="batchAction('diagrams')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> Diagrams</button>
-    <button class="btn sm ghost" onclick="batchAction('label')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg> Label</button>
+    <button class="btn sm ghost" onclick="batchAction('extract')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Extract</button>
     <button class="btn sm ghost" onclick="batchAction('parse')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Parse LLM</button>
   </div>
   <button class="btn sm ghost" style="color:var(--bad);flex-shrink:0" onclick="deselectAll()">✕ Clear</button>
@@ -623,14 +622,12 @@ function batchAction(action){
   const endpoints = {
     identify: '/api/batch/pdfs/identify',
     parse: '/api/batch/pdfs/parse',
-    diagrams: '/api/batch/pdfs/extract-diagrams',
-    label: '/api/batch/pdfs/label-diagrams',
+    extract: '/api/batch/pdfs/extract',
   };
   const labels = {
     identify: 'Identifying',
     parse: 'Parsing (LLM)',
-    diagrams: 'Extracting diagrams',
-    label: 'Labeling diagrams',
+    extract: 'Extracting',
   };
   const ep = endpoints[action];
   if(!ep)return;
@@ -751,7 +748,7 @@ async function loadCatalog(){
         card.innerHTML=`
           <div class="cat-header" onclick="toggleCatDetail(${p.id})">
             <input type="checkbox" class="sel-cb" style="margin:0 8px 0 0;flex-shrink:0" onchange="event.stopPropagation();toggleSelect(${p.id})" ${SELECTED.has(p.id)?'checked':''}>
-            <strong style="flex:1;font-size:15px">${displayName}</strong>
+            <strong style="flex:1;font-size:15px"><span style="color:var(--ink-dim);font-weight:600;font-size:13px">#${p.id}</span> ${displayName}</strong>
             <div style="display:flex;gap:4px;flex-wrap:wrap">${statusBadges}</div>
             <span class="stat">${p.pages??'?'}p · ${p.diagram_count||0} diag</span>
             <span style="color:var(--ink-muted);display:inline-flex;transition:transform .2s" id="catArrow-${p.id}">${icn('chevron','14')}</span>
@@ -762,7 +759,7 @@ async function loadCatalog(){
           <div style="padding:6px 18px 12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
             <div class="cat-status-msg" style="display:flex;gap:4px;flex-wrap:wrap;flex:1">
               ${isIdentifying ? `<span class="pill" style="background:rgba(255,176,0,0.15);border-color:rgba(255,176,0,0.3);color:var(--amber)">${icn('spinner','10')} Identifying...</span>` : ''}
-              ${p.processing?.identified_method && p.processing.identified_method !== 'none' ? `<span class="pill" style="font-size:10px;color:var(--ink-muted)">via ${p.processing.identified_method}</span>` : ''}
+              ${p.processing?.identified_method && p.processing.identified_method !== 'none' ? `<span class="pill" style="font-size:10px;color:var(--ink-muted)">via ${escH(methodLabel(p.processing.identified_method)||p.processing.identified_method)}</span>` : ''}
             </div>
             <button class="btn sm" onclick="event.stopPropagation();startFromPdf(${p.id})">Use for video</button>
             <button class="btn sm ghost" onclick="event.stopPropagation();inlineEditChapter(${p.id},'${displayName.replace(/'/g,"\\'")}',this)">${icn('edit','12')} Edit</button>
@@ -776,6 +773,20 @@ async function loadCatalog(){
 }
 
 // INLINE EDIT for chapter name
+const METHOD_LABELS={
+  'page-aggregated':'running header',
+  'running-header':'running header',
+  'known':'known chapter map',
+  'manual':'manual',
+  'vision':'vision',
+  'gemma_context':'vision context',
+  'heuristic':'heuristic',
+  'filename':'filename',
+  'content':'content',
+  'comprehensive':'comprehensive',
+  'none':null,
+};
+function methodLabel(m){return m?METHOD_LABELS[m]||m:null;}
 function inlineEditChapter(pid, currentName, btn){
   const row=btn.closest('.cat-card');
   const header=row.querySelector('.cat-header');
@@ -811,6 +822,9 @@ function closeDiagramLightbox(e){
 }
 
 // catalogue accordion
+function escH(s){return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+const CAT_PAGES={}; // pid -> {d, byPage, offset, limit, total}
 async function toggleCatDetail(pid){
   if(_openPid&&_openPid!==pid){
     const prev=$('#catDetail-'+_openPid);
@@ -830,41 +844,107 @@ async function toggleCatDetail(pid){
     CAT_CACHE[pid]=true;
     try{
       const d=await api('/api/pdfs/'+pid+'/details');
-      let diagHtml='<span class="stat">No diagrams extracted.</span>';
-      if(d.diagrams&&d.diagrams.length){
-        diagHtml=d.diagrams.map(di=>{
-          const imgUrl='/api/diagram-file/'+di.id;
-          const label=(di.description||'').replace(/['"]/g,'').split('.')[0].slice(0,80);
-          return `<div class="diag-thumb" onclick="openDiagramLightbox('${imgUrl}','${(di.description||'No label').replace(/'/g,"\\'")}')">
-            <img src="${imgUrl}" loading="lazy">
-            <div style="font-size:10px;color:var(--ink-dim);margin-top:4px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${label}</div>
-            <div class="stat" style="font-size:10px">p${di.page_number} · <span class="link" onclick="event.stopPropagation();inlineEditDiagram(${di.id},'${label.replace(/'/g,"\\'")}',this)">${icn('edit','10')}</span></div>
-          </div>`;
-        }).join('');
-      }
-      const isSTEM=/science|math|physics|chemistry|biology/i.test(d.pdf?.subject||'');
-      el.innerHTML=`
-        <div class="detail-grid">
-          <div>
-            <h3>Extracted Text ${isSTEM?'<span class="stat">· STEM mode</span>':''}</h3>
-            <div style="border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:10px;max-height:200px;overflow-y:auto;font-size:12px;line-height:1.6;background:rgba(0,0,0,0.2)">
-              <pre style="margin:0;white-space:pre-wrap;font:inherit;color:var(--ink);font-family:${isSTEM?'\"Cambria Math\", \"STIX Two Math\", serif':'inherit'}">${(d.text_preview||'No text extracted.').slice(0,2000)}</pre>
-            </div>
-            <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-              <button class="btn sm ghost" onclick="event.stopPropagation();api('/api/pdfs/${pid}/extract-diagrams','POST').then(()=>{delete CAT_CACHE[${pid}];_openPid=null;toggleCatDetail(${pid});})">${icn('eye','12')} Diagrams</button>
-              <button class="btn sm ghost" onclick="event.stopPropagation();api('/api/pdfs/${pid}/parse','POST').then(r=>{delete CAT_CACHE[${pid}];_openPid=null;toggleCatDetail(${pid});loadCatalog()})">${icn('gear','12')} Parse</button>
-              ${isSTEM?`<button class="btn sm ghost" onclick="event.stopPropagation();api('/api/pdfs/${pid}/ocr-stem','POST',{pages:[0,1,2]}).then(r=>{})">OCR</button>`:''}
-              <button class="btn sm ghost" onclick="event.stopPropagation();triggerComprehensive(${pid})">${icn('eye','12')} Analyze All Pages</button>
-              <button class="btn sm ghost" onclick="event.stopPropagation();api('/api/pdfs/${pid}/analyze-diagrams','POST').then(r=>{delete CAT_CACHE[${pid}];_openPid=null;toggleCatDetail(${pid});})">${icn('eye','12')} Label Diagrams</button>
-            </div>
-          </div>
-          <div>
-            <h3>Diagrams <span class="stat">${d.diagram_count}</span></h3>
-            <div style="border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:8px;max-height:300px;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:start;gap:4px;background:rgba(0,0,0,0.2)">${diagHtml}</div>
-          </div>
-        </div>`;
+      CAT_CACHE[pid]=d;
+      renderCatDetail(pid,el,d);
     }catch(e){delete CAT_CACHE[pid];el.innerHTML='<span class="stat error">Failed: '+e.message+'</span>';}
   }
+}
+
+function renderCatDetail(pid,el,d){
+  const isSTEM=/science|math|physics|chemistry|biology/i.test(d.pdf?.subject||'');
+  const totalPages=d.pdf?.pages||d.full_page_count||0;
+  const chMethod=methodLabel(d.pdf?.identified_method);
+  // Group diagrams by physical page (stored page_number is 0-based fitz index)
+  const byPage={};
+  (d.diagrams||[]).forEach(di=>{
+    const pg=di.page_number+1;
+    (byPage[pg]=byPage[pg]||[]).push(di);
+  });
+  el.innerHTML=`
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <span style="font-size:13px;color:var(--ink-muted)">Chapter: <strong>${escH(d.pdf?.chapter_name||'Untitled')}</strong></span>
+      ${chMethod?`<span class="pill" style="font-size:10px;color:var(--ink-muted)">identified via ${escH(chMethod)}</span>`:''}
+      <span style="flex:1"></span>
+      <button class="btn sm" onclick="event.stopPropagation();extractPdf(${pid},this)">${icn('zap','12')} Extract</button>
+      <button class="btn sm ghost" onclick="event.stopPropagation();api('/api/pdfs/${pid}/parse','POST').then(r=>{delete CAT_CACHE[${pid}];_openPid=null;toggleCatDetail(${pid});loadCatalog()})">${icn('gear','12')} Parse</button>
+    </div>
+    <div class="detail-grid" style="grid-template-columns:minmax(0,1fr) minmax(0,340px)">
+      <div>
+        <h3>Extracted Text <span class="stat">· page by page</span></h3>
+        <div id="catPages-${pid}" style="border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:8px;max-height:430px;overflow-y:auto;background:rgba(0,0,0,0.2);font-family:${isSTEM?'\"Cambria Math\", \"STIX Two Math\", serif':'inherit'}">
+          <span class="stat">${icn('spinner','14')} Loading pages...</span>
+        </div>
+      </div>
+      <div>
+        <h3>PDF <span class="stat">· cross-check</span></h3>
+        <iframe src="/api/pdfs/${pid}/file" style="width:100%;height:430px;border:1px solid var(--glass-border);border-radius:var(--radius-sm);background:#fff"></iframe>
+      </div>
+    </div>
+    <h3 style="margin-top:10px">Diagrams <span class="stat">${d.diagram_count}</span></h3>
+    <div style="border:1px solid var(--glass-border);border-radius:var(--radius-sm);padding:8px;max-height:240px;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:start;gap:4px;background:rgba(0,0,0,0.2)">
+      ${diagThumbs(d.diagrams)}
+    </div>`;
+  CAT_PAGES[pid]={d,byPage,offset:0,limit:4,total:totalPages};
+  loadCatPages(pid);
+}
+
+function diagThumbs(diags){
+  if(!diags||!diags.length)return '<span class="stat">No diagrams extracted.</span>';
+  return diags.map(di=>{
+    const imgUrl='/api/diagram-file/'+di.id;
+    const label=(di.description||'').replace(/['"]/g,'').split('.')[0].slice(0,80);
+    return `<div class="diag-thumb" onclick="openDiagramLightbox('${imgUrl}','${(di.description||'No label').replace(/'/g,"\\'")}')">
+      <img src="${imgUrl}" loading="lazy">
+      <div style="font-size:10px;color:var(--ink-dim);margin-top:4px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${label}</div>
+      <div class="stat" style="font-size:10px">p${di.page_number+1} · <span class="link" onclick="event.stopPropagation();inlineEditDiagram(${di.id},'${label.replace(/'/g,"\\'")}',this)">${icn('edit','10')}</span></div>
+    </div>`;
+  }).join('');
+}
+
+async function loadCatPages(pid){
+  const st=CAT_PAGES[pid];
+  if(!st)return;
+  const box=$('#catPages-'+pid);
+  if(!box)return;
+  try{
+    const r=await api(`/api/pdfs/${pid}/pages?offset=${st.offset}&limit=${st.limit}`);
+    st.total=r.total_pages;
+    st.offset=Math.min(r.offset+r.pages.length,st.total);
+    const oldBtn=box.querySelector('.cat-more');
+    if(oldBtn)oldBtn.remove();
+    box.insertAdjacentHTML('beforeend', catPageHtml(pid,st,r.pages));
+    if(st.offset<st.total){
+      const div=document.createElement('div');
+      div.className='cat-more';
+      div.style.cssText='text-align:center;padding:6px';
+      div.innerHTML=`<button class="btn sm ghost" onclick="event.stopPropagation();loadCatPages(${pid})">${icn('chevron','12')} Load next ${st.limit}</button>`;
+      box.appendChild(div);
+    }else if(st.total){
+      box.insertAdjacentHTML('beforeend',`<div class="stat" style="text-align:center;padding:6px">All ${st.total} pages loaded.</div>`);
+    }
+  }catch(e){box.innerHTML='<span class="stat error">Failed to load pages: '+e.message+'</span>';}
+}
+
+function catPageHtml(pid,st,pages){
+  return pages.map(p=>{
+    const diags=(st.byPage[p.page]||[]);
+    const dgHtml=diags.map(di=>{
+      const imgUrl='/api/diagram-file/'+di.id;
+      const label=(di.description||'').replace(/['"]/g,'').split('.')[0].slice(0,60);
+      return `<div class="diag-thumb" onclick="event.stopPropagation();openDiagramLightbox('${imgUrl}','${(di.description||'').replace(/'/g,"\\'")}')" style="width:54px">
+        <img src="${imgUrl}" loading="lazy" style="max-width:54px;max-height:44px">
+        <div style="font-size:8px;color:var(--ink-dim);margin-top:2px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</div>
+      </div>`;
+    }).join('');
+    return `<div class="cat-page" style="border-bottom:1px solid var(--glass-border);padding:6px 2px">
+      <div style="display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+        <span style="font-weight:600;font-size:12px">Page ${p.page}</span>
+        ${dgHtml}
+        <span class="stat" style="font-size:10px;margin-left:auto">${p.text.length} chars</span>
+      </div>
+      <div style="display:none;font-size:11px;line-height:1.55;margin-top:4px;white-space:pre-wrap;color:var(--ink-dim)">${escH(p.text)}</div>
+    </div>`;
+  }).join('');
 }
 
 // inline edit diagram description
@@ -892,6 +972,28 @@ async function inlineEditDiagram(did, currentLabel, el){
 
 // comprehensive analysis trigger
 const COMPREHENSIVE_RUNNING = {};
+const EXTRACT_RUNNING={};
+async function extractPdf(pid, btn){
+  if(EXTRACT_RUNNING[pid]){alert('Extraction already running for this PDF');return;}
+  EXTRACT_RUNNING[pid]=true;
+  if(btn){btn.innerHTML=icn('spinner','12')+' Extracting...';btn.disabled=true;}
+  try{
+    const r=await api('/api/pdfs/'+pid+'/extract','POST');
+    if(r.task_id)track(r.task_id,'Extract PDF #'+pid);
+    for(let i=0;i<120;i++){
+      await new Promise(r=>setTimeout(r,3000));
+      if(!r.task_id)break;
+      const st=await api('/api/tasks/'+r.task_id);
+      if(st.status==='done'||st.status==='error')break;
+    }
+    delete CAT_CACHE[pid];_openPid=null;
+    toggleCatDetail(pid);
+    loadCatalog();
+  }catch(e){alert('Extraction failed: '+e.message);}
+  delete EXTRACT_RUNNING[pid];
+  if(btn){btn.innerHTML=icn('zap','12')+' Extract';btn.disabled=false;}
+}
+
 async function triggerComprehensive(pid){
   if(COMPREHENSIVE_RUNNING[pid]){alert('Analysis already running for this PDF');return;}
   const btn = event?.target;

@@ -240,26 +240,28 @@ def extract(path: str, dpi: int = 200) -> dict:
         pypdf_text += raw + "\n\n"
     pypdf_text = clean_text(pypdf_text)
 
-    # --- Phase 2: always run OCR (quality over speed) ---
-    from pdf2image import convert_from_path
-    import pytesseract
-
+    # --- Phase 2: OCR via the GPU orchestrator (Unlimited-OCR) ONLY when the
+    #     pypdf layer is garbled / empty (scanned pages or non-Unicode fonts).
+    #     This replaces the old Tesseract fallback. ---
     lang = _lang_from_path(path)
     result["lang"] = lang
 
-    ocr_chunks = []
-    try:
-        images = convert_from_path(path, dpi=dpi, fmt="jpeg", thread_count=2)
-        for img in images:
-            t = pytesseract.image_to_string(img, lang=lang)
-            ocr_chunks.append(t)
-    except Exception as e:
-        # If OCR fails (no Tesseract, no disk space, etc.), fall back to pypdf
+    # A clean pypdf layer (English/Sanskrit/Hindi with Unicode fonts) is the
+    # ground truth — OCR would only add hallucinated filler. Skip it entirely.
+    if not _is_garbled(pypdf_text) and pypdf_text.strip():
         result["text"] = pypdf_text
         result["method"] = "pypdf"
         return result
 
-    ocr_text = clean_text("\n\n".join(ocr_chunks))
+    from pipeline.lib.orch_ocr import OcrUnavailableError, transcribe_pdf
+
+    try:
+        ocr_text = clean_text(transcribe_pdf(path, dpi=dpi))
+    except (OcrUnavailableError, Exception) as e:
+        # Orchestrator down / model error: fall back to the pypdf layer.
+        result["text"] = pypdf_text
+        result["method"] = "pypdf"
+        return result
 
     # --- Phase 3: prefer OCR; fall back to pypdf if OCR produced nothing ---
     if ocr_text.strip():

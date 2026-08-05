@@ -60,7 +60,8 @@ def scan(force=False):
     conn = get_conn()
     existing_map = {r["path"]: r["id"] for r in conn.execute("SELECT id, path FROM pdfs").fetchall()}
     added = 0
-    for root, _, files in os.walk(PDF_ROOT):
+    for root, dirs, files in os.walk(PDF_ROOT):
+        dirs[:] = [d for d in dirs if d.lower() != "extracted"]
         for fn in files:
             if not fn.lower().endswith(".pdf"):
                 continue
